@@ -330,7 +330,7 @@ Os jogadores continuam cadastrados na lista.
 ------------------------------------------------------------------------
 
 # 📌 Regras atuais resumidas
-
+```text
   Regra                                                 Valor
   --------------------------------- -------------------------
   Máximo de jogadores cadastrados                          40
@@ -343,7 +343,7 @@ Os jogadores continuam cadastrados na lista.
   Jogadores confirmados na quadra                         Sim
   Vitória consecutiva                 Time vencedor permanece
   2 vitórias consecutivas                 Ambos os times saem
-
+```
 ------------------------------------------------------------------------
 
 # 🧭 Próximas melhorias
