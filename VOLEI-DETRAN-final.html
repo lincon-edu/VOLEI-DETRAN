@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rotação Vôlei</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f3f4f6; color: #1f2937; padding-bottom: 75px; }
+        .container { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: #16a34a; color: white; padding: 12px 16px; font-weight: bold; font-size: 17px; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .header button { border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .btn-auth { background: #15803d; color: white; border: 1px solid #86efac !important; }
+        .btn-danger { background: #ef4444; color: white; }
+        .content { padding: 16px; flex: 1; }
+        
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+        .card-header { background: #f9fafb; padding: 10px 14px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .badge { background: #16a34a; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+
+        .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
+        .input-group input { flex: 1; min-width:0; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; outline: none; }
+        .input-group select { width:72px; padding:12px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:15px; background:white; }
+        .sex-tag { font-size:10px; font-weight:bold; padding:2px 6px; border-radius:10px; margin-left:6px; background:#e5e7eb; color:#4b5563; }
+        .sex-tag.f { background:#fce7f3; color:#9d174d; }
+        .btn-add { background: #16a34a; color: white; border: none; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; }
+
+        ul { list-style: none; }
+        li { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+        li:last-child { border-bottom: none; }
+
+        .check-btn { width: 30px; height: 30px; border-radius: 50%; border: none; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
+        .btn-del { background: none; border: none; color: #ef4444; font-size: 16px; cursor: pointer; padding: 6px; }
+
+        .start-btn { width: 100%; background: #16a34a; color: white; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+
+        /* Quadra */
+        .teams-grid { display: flex; gap: 10px; margin-bottom: 16px; }
+        .team-col { flex: 1; border-radius: 8px; border: 2px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; background: white; }
+        .team-a { border-color: #3b82f6; }
+        .team-b { border-color: #ef4444; }
+        .team-title { color: white; padding: 8px 10px; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; }
+        .team-title-a { background: #3b82f6; }
+        .team-title-b { background: #ef4444; }
+        .team-list { min-height: 140px; padding: 6px; flex: 1; }
+        .team-list li { padding: 6px 4px; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f9fafb; }
+        .btn-win-a { width: 100%; padding: 12px 0; background: #dbeafe; color: #1e40af; border: none; border-top: 1px solid #bfdbfe; font-weight: bold; cursor: pointer; }
+        .btn-win-b { width: 100%; padding: 12px 0; background: #fee2e2; color: #991b1b; border: none; border-top: 1px solid #fecaca; font-weight: bold; cursor: pointer; }
+
+        /* Fila */
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
+        .queue-item.priority { background: #fff7ed; border-left: 4px solid #f97316; }
+        .queue-controls button { background: #f3f4f6; border: 1px solid #e5e7eb; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .tag-wait { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e5e7eb; font-weight: bold; }
+        .tag-wait.urgent { background: #f97316; color: white; }
+
+        /* Resenha / Ranking */
+        .rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #f3f4f6; }
+        .rank-pos { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; color: #fff; background: #9ca3af; }
+        .rank-pos.gold { background: #eab308; }
+        .rank-pos.silver { background: #94a3b8; }
+        .rank-pos.bronze { background: #d97706; }
+        .rank-details { flex: 1; }
+        .rank-stats { display: flex; gap: 12px; font-size: 12px; color: #6b7280; margin-top: 2px; }
+        .rank-pct { text-align: right; }
+        .rank-pct-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; font-weight: bold; }
+        .rank-pct-val { font-size: 15px; font-weight: bold; color: #16a34a; }
+
+        /* Modal Login */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
+        .modal-body { background: white; width: 90%; max-width: 360px; padding: 20px; border-radius: 12px; }
+        .modal-body h3 { margin-bottom: 12px; }
+        .modal-body input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+        /* Tabbar */
+        .tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 60px; background: white; border-top: 1px solid #e5e7eb; display: flex; z-index: 20; }
+        .tab-btn { flex: 1; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #6b7280; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+        .tab-btn.active { color: #16a34a; border-top: 3px solid #16a34a; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span>🏐 Rotação Vôlei</span>
+            <div class="header-actions">
+                <button id="btn-login" class="btn-auth" onclick="openLoginModal()">🔑 Entrar ADM</button>
+                <button id="btn-reset" class="btn-danger" style="display:none;" onclick="resetGame()">Reiniciar</button>
+            </div>
+        </div>
+
+        <!-- ABA 1: LISTA -->
+        <div class="content" id="tab-lista">
+            <div class="input-group" id="admin-add-section" style="display:none;">
+                <input type="text" id="player-name" placeholder="Adicionar jogador..." onkeydown="if(event.key==='Enter') addPlayer()">
+                <select id="player-sex" aria-label="Sexo"><option value="M">M</option><option value="F">F</option></select>
+                <button class="btn-add" onclick="addPlayer()">+</button>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <span>Lista de Jogadores</span>
+                    <span class="badge" id="confirmed-count">0 Confirmados</span>
+                </div>
+                <ul id="players-list" style="max-height: 480px; overflow-y: auto;"></ul>
+                <div id="player-summary" style="padding:12px 14px; border-top:1px solid #e5e7eb; background:#f9fafb; font-size:13px; line-height:1.7;">
+                    <div><strong>Total Mulheres:</strong> <span id="total-female">0</span></div>
+                    <div><strong>Total Homens:</strong> <span id="total-male">0</span></div>
+                    <div><strong>Total jogadores:</strong> <span id="total-players">0</span></div>
+                </div>
+            </div>
+            <button class="start-btn" id="btn-start" style="display:none;" onclick="startGame()">Começar Jogo ➔</button>
+        </div>
+
+        <!-- ABA 2: QUADRA -->
+        <div class="content" id="tab-quadra" style="display:none;">
+            <div class="teams-grid">
+                <div class="team-col team-a" id="card-team-a">
+                    <div class="team-title team-title-a"><span>TIME A</span><span id="wins-a">0 🏆</span></div>
+                    <ul class="team-list" id="list-team-a"></ul>
+                    <button class="btn-win-a" id="btn-win-a" style="display:none;" onclick="handleWin('A')">VENCEU</button>
+                </div>
+                <div class="team-col team-b" id="card-team-b">
+                    <div class="team-title team-title-b"><span>TIME B</span><span id="wins-b">0 🏆</span></div>
+                    <ul class="team-list" id="list-team-b"></ul>
+                    <button class="btn-win-b" id="btn-win-b" style="display:none;" onclick="handleWin('B')">VENCEU</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span>Fila de Espera</span>
+                    <span style="font-size:12px; color:#6b7280;" id="queue-count">0 pessoas</span>
+                </div>
+                <ul id="queue-list" style="max-height: 420px; overflow-y: auto;"></ul>
+            </div>
+        </div>
+
+        <!-- ABA 3: RESENHA -->
+        <div class="content" id="tab-resenha" style="display:none;">
+            <div class="card">
+                <div class="card-header" style="background: #15803d; color: white;">
+                    <span>📊 Estatísticas & Ranking</span>
+                    <span style="font-size:11px; opacity:0.9;">Mais Vitórias</span>
+                </div>
+                <ul id="resenha-list" style="max-height: 520px; overflow-y: auto;"></ul>
+            </div>
+        </div>
+
+        <!-- TABBAR INFERIOR -->
+        <div class="tabbar">
+            <button class="tab-btn active" id="btn-tab-lista" onclick="switchTab('lista')">Lista</button>
+            <button class="tab-btn" id="btn-tab-quadra" onclick="switchTab('quadra')">Quadra</button>
+            <button class="tab-btn" id="btn-tab-resenha" onclick="switchTab('resenha')">Resenha</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE LOGIN ADM -->
+    <div class="modal" id="login-modal">
+        <div class="modal-body">
+            <h3>Acesso Administrativo</h3>
+            <input type="email" id="admin-user" placeholder="E-mail do administrador" autocomplete="username">
+            <input type="password" id="admin-pass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter') loginAdmin()">
+            <div class="modal-actions">
+                <button onclick="closeLoginModal()" style="padding:8px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer;">Cancelar</button>
+                <button onclick="loginAdmin()" style="padding:8px 14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://oxacdamrkrokzocamvfw.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_uusWwV0ef8ux-Dr__IFlPA_WGwQpAqO';
+        const { createClient } = window.supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        });
+
+        let currentAdmin = null;
+        let currentUser = null;
+        let currentTab = 'lista';
+        let gameStarted = false;
+        let teamAWins = 0;
+        let teamBWins = 0;
+        let players = [];
+        let teamA = [];
+        let teamB = [];
+        let queue = [];
+        let realtimeChannel = null;
+        let loading = true;
+        let syncing = false;
+
+        const jogadoresIniciais = [
+            ['Victor','M'], ['Joao V','M'], ['Glauber','M'], ['Lucas','M'], ['Mateus','M'], ['Gabriel','M'],
+            ['Rafael','M'], ['João','M'], ['Pedro','M'], ['Tiago','M'], ['Marcos','M'], ['André','M'],
+            ['Felipe','M'], ['Carlos','M'], ['Eduardo','M'], ['Marcelo','M'], ['Gustavo','M'], ['Fernando','M'],
+            ['Bruno','M'], ['Diego','M'], ['Leonardo','M'], ['Thiago','M'], ['Rodrigo','M'],
+            ['Ana','F'], ['Julia','F'], ['Beatriz','F'], ['Mariana','F'], ['Camila','F'], ['Letícia','F'], ['Amanda','F']
+        ];
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+        }
+
+        function isAdmin() { return currentUser !== null; }
+
+        function requiredWomenPerTeam(confirmedPlayers = players.filter(p => p.confirmed)) {
+            const women = confirmedPlayers.filter(p => p.sex === 'F').length;
+            return confirmedPlayers.length > 0 && women / confirmedPlayers.length >= 0.5 ? 2 : 1;
+        }
+
+        function waitingPriority(a, b) {
+            return (b.waitCount || 0) - (a.waitCount || 0) ||
+                   new Date(a.createdAt || 0) - new Date(b.createdAt || 0) ||
+                   a.id - b.id;
+        }
+
+        function takeBestWoman(pool) {
+            const candidates = pool.filter(p => p.sex === 'F').sort(waitingPriority);
+            if (!candidates.length) return null;
+            const chosen = candidates[0];
+            const index = pool.findIndex(p => p.id === chosen.id);
+            if (index >= 0) pool.splice(index, 1);
+            return chosen;
+        }
+
+        function composeTeams(pool, keepA = [], keepB = [], requiredWomen = 1) {
+            const available = [...pool].sort(waitingPriority);
+            const A = [...keepA];
+            const B = [...keepB];
+            const fillRequiredWomen = team => {
+                let missing = Math.max(0, requiredWomen - team.filter(p => p.sex === 'F').length);
+                while (missing > 0 && team.length < 4) {
+                    const woman = takeBestWoman(available);
+                    if (!woman) break;
+                    team.push(woman);
+                    missing--;
+                }
+            };
+            fillRequiredWomen(A);
+            fillRequiredWomen(B);
+            while (A.length < 4 && available.length) A.push(available.shift());
+            while (B.length < 4 && available.length) B.push(available.shift());
+            return { A, B, remaining: available };
+        }
+
+        function render() {
+            const admin = isAdmin();
+            const btnLogin = document.getElementById('btn-login');
+            btnLogin.innerText = admin ? `Sair (${currentAdmin})` : '🔑 Entrar ADM';
+            btnLogin.onclick = admin ? logoutAdmin : openLoginModal;
+            btnLogin.className = admin ? 'btn-danger' : 'btn-auth';
+
+            document.getElementById('admin-add-section').style.display = admin ? 'flex' : 'none';
+            document.getElementById('btn-reset').style.display = (gameStarted && admin) ? 'block' : 'none';
+            document.getElementById('btn-start').style.display = (!gameStarted && admin) ? 'block' : 'none';
+
+            const listEl = document.getElementById('players-list');
+            listEl.innerHTML = '';
+            const confirmed = players.filter(p => p.confirmed);
+            document.getElementById('confirmed-count').innerText = `${confirmed.length} Confirmados`;
+
+            players.forEach((p, idx) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div style="display:flex; align-items:center; min-width:0;">
+                        <button class="check-btn" style="background:${p.confirmed ? '#16a34a' : '#d1d5db'}; cursor:${admin ? 'pointer' : 'default'};" ${admin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>${p.confirmed ? '✓' : '✕'}</button>
+                        <span style="width:28px; color:#6b7280; font-size:13px; font-weight:bold; flex-shrink:0;">${idx + 1}.</span>
+                        <span style="font-size:15px; font-weight:600; color:${p.confirmed ? '#1f2937' : '#9ca3af'}; text-decoration:${p.confirmed ? 'none' : 'line-through'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.name)}</span>
+                        <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span>
+                    </div>
+                    ${admin ? `<button class="btn-del" onclick="removePlayer(${p.id})">🗑️</button>` : ''}
+                `;
+                listEl.appendChild(li);
+            });
+
+            document.getElementById('total-female').innerText = players.filter(p => p.sex === 'F').length;
+            document.getElementById('total-male').innerText = players.filter(p => p.sex === 'M').length;
+            document.getElementById('total-players').innerText = players.length;
+
+            document.getElementById('wins-a').innerText = `${teamAWins} 🏆`;
+            document.getElementById('wins-b').innerText = `${teamBWins} 🏆`;
+
+            const listA = document.getElementById('list-team-a');
+            const listB = document.getElementById('list-team-b');
+            listA.innerHTML = teamA.map(p => `<li>${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span></li>`).join('');
+            listB.innerHTML = teamB.map(p => `<li>${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span></li>`).join('');
+            document.getElementById('btn-win-a').style.display = admin ? 'block' : 'none';
+            document.getElementById('btn-win-b').style.display = admin ? 'block' : 'none';
+
+            const queueEl = document.getElementById('queue-list');
+            queueEl.innerHTML = '';
+            document.getElementById('queue-count').innerText = `${queue.length} pessoas`;
+            if (!queue.length) {
+                queueEl.innerHTML = '<li style="color:#9ca3af; text-align:center; padding:16px;">Fila vazia</li>';
+            } else {
+                queue.forEach((p, idx) => {
+                    const urgent = p.waitCount >= 2;
+                    queueEl.innerHTML += `
+                        <li class="queue-item ${urgent ? 'priority' : ''}">
+                            <div><span style="color:#9ca3af; font-size:12px; margin-right:4px;">${idx + 1}º</span><b>${escapeHtml(p.name)}</b><span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span><span style="color:#9ca3af; font-size:11px; margin-left:4px;">(${p.matches}j)</span><span class="tag-wait ${urgent ? 'urgent' : ''}" style="margin-left:6px;">Espera: ${p.waitCount}</span></div>
+                            ${admin ? `<div class="queue-controls"><button onclick="moveQueue(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button><button onclick="moveQueue(${idx}, 1)" ${idx === queue.length - 1 ? 'disabled' : ''}>▼</button><button onclick="removePlayer(${p.id})" style="color:#ef4444;">✕</button></div>` : ''}
+                        </li>`;
+                });
+            }
+
+            const resenhaEl = document.getElementById('resenha-list');
+            resenhaEl.innerHTML = '';
+            [...players].sort((a,b) => b.wins - a.wins || b.matches - a.matches).forEach((p, idx) => {
+                const pct = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+                const badge = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+                resenhaEl.innerHTML += `<li class="rank-item"><div class="rank-pos ${badge}">${idx + 1}</div><div class="rank-details"><div style="font-weight:bold; font-size:14px;">${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span></div><div class="rank-stats"><span>🏐 ${p.matches} Jogos</span><span style="color:#16a34a; font-weight:bold;">🏆 ${p.wins} Vitórias</span></div></div><div class="rank-pct"><div class="rank-pct-label">Aprov.</div><div class="rank-pct-val">${pct}%</div></div></li>`;
+            });
+
+            if (loading) {
+                document.getElementById('confirmed-count').innerText = 'Carregando...';
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-lista').style.display = tab === 'lista' ? 'block' : 'none';
+            document.getElementById('tab-quadra').style.display = tab === 'quadra' ? 'block' : 'none';
+            document.getElementById('tab-resenha').style.display = tab === 'resenha' ? 'block' : 'none';
+            document.getElementById('btn-tab-lista').className = 'tab-btn' + (tab === 'lista' ? ' active' : '');
+            document.getElementById('btn-tab-quadra').className = 'tab-btn' + (tab === 'quadra' ? ' active' : '');
+            document.getElementById('btn-tab-resenha').className = 'tab-btn' + (tab === 'resenha' ? ' active' : '');
+        }
+
+        function openLoginModal() { document.getElementById('login-modal').style.display = 'flex'; }
+        function closeLoginModal() {
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('admin-user').value = '';
+            document.getElementById('admin-pass').value = '';
+        }
+
+        async function loginAdmin() {
+            const email = document.getElementById('admin-user').value.trim();
+            const password = document.getElementById('admin-pass').value;
+            if (!email || !password) return alert('Informe e-mail e senha.');
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) return alert(`Falha no login: ${error.message}`);
+            currentUser = data.user;
+            currentAdmin = data.user.email || 'ADM';
+            closeLoginModal();
+            render();
+        }
+
+        async function logoutAdmin() {
+            await supabaseClient.auth.signOut();
+            currentUser = null;
+            currentAdmin = null;
+            render();
+        }
+
+        function mapPlayer(row) {
+            return {
+                id: row.id,
+                name: row.nome,
+                sex: row.sexo,
+                confirmed: row.confirmado,
+                matches: row.partidas,
+                wins: row.vitorias,
+                waitCount: row.espera,
+                createdAt: row.criado_em
+            };
+        }
+
+        async function loadDatabase() {
+            loading = true;
+            render();
+            const [playersResult, stateResult, positionsResult] = await Promise.all([
+                supabaseClient.from('jogadores').select('*').order('criado_em', { ascending: true }),
+                supabaseClient.from('estado_jogo').select('*').eq('id', 1).maybeSingle(),
+                supabaseClient.from('jogo_jogadores').select('*').order('posicao', { ascending: true })
+            ]);
+
+            if (playersResult.error) throw playersResult.error;
+            if (stateResult.error) throw stateResult.error;
+            if (positionsResult.error) throw positionsResult.error;
+
+            players = playersResult.data.map(mapPlayer);
+            const state = stateResult.data;
+            gameStarted = !!state?.iniciado;
+            teamAWins = state?.vitorias_time_a || 0;
+            teamBWins = state?.vitorias_time_b || 0;
+            teamA = [];
+            teamB = [];
+            queue = [];
+
+            if (gameStarted) {
+                const byId = new Map(players.map(p => [p.id, p]));
+                for (const row of positionsResult.data) {
+                    const p = byId.get(row.jogador_id);
+                    if (!p) continue;
+                    if (row.localizacao === 'TIME_A') teamA.push(p);
+                    else if (row.localizacao === 'TIME_B') teamB.push(p);
+                    else queue.push(p);
+                }
+            }
+            loading = false;
+            render();
+        }
+
+        async function ensureAdmin() {
+            const { data } = await supabaseClient.auth.getSession();
+            currentUser = data.session?.user || null;
+            currentAdmin = currentUser?.email || null;
+        }
+
+        async function persistGameState() {
+            if (!isAdmin() || syncing) return;
+            syncing = true;
+            try {
+                const { error: stateError } = await supabaseClient.from('estado_jogo').upsert({
+                    id: 1,
+                    iniciado: gameStarted,
+                    vitorias_time_a: teamAWins,
+                    vitorias_time_b: teamBWins
+                });
+                if (stateError) throw stateError;
+
+                const { error: deleteError } = await supabaseClient.from('jogo_jogadores').delete().neq('jogador_id', 0);
+                if (deleteError) throw deleteError;
+
+                if (gameStarted) {
+                    const rows = [
+                        ...teamA.map((p, i) => ({ jogador_id: p.id, localizacao: 'TIME_A', posicao: i + 1 })),
+                        ...teamB.map((p, i) => ({ jogador_id: p.id, localizacao: 'TIME_B', posicao: i + 1 })),
+                        ...queue.map((p, i) => ({ jogador_id: p.id, localizacao: 'FILA', posicao: i + 1 }))
+                    ];
+                    if (rows.length) {
+                        const { error } = await supabaseClient.from('jogo_jogadores').insert(rows);
+                        if (error) throw error;
+                    }
+                }
+            } finally {
+                syncing = false;
+            }
+        }
+
+        async function updatePlayer(id, changes) {
+            const { error } = await supabaseClient.from('jogadores').update(changes).eq('id', id);
+            if (error) throw error;
+        }
+
+        async function addPlayer() {
+            if (!isAdmin()) return;
+            if (players.length >= 30) return alert('A lista atingiu o limite máximo de 30 pessoas.');
+            const input = document.getElementById('player-name');
+            const sex = document.getElementById('player-sex').value;
+            const name = input.value.trim();
+            if (!name) return;
+            const { data, error } = await supabaseClient.from('jogadores').insert({ nome: name, sexo: sex, confirmado: true }).select().single();
+            if (error) return alert(`Erro ao adicionar jogador: ${error.message}`);
+            const newPlayer = mapPlayer(data);
+            players.push(newPlayer);
+            if (gameStarted) {
+                queue.push(newPlayer);
+                await persistGameState();
+            }
+            input.value = '';
+            render();
+        }
+
+        async function togglePresence(id) {
+            if (!isAdmin()) return;
+            const p = players.find(p => p.id === id);
+            if (!p) return;
+            try {
+                await updatePlayer(id, { confirmado: !p.confirmed });
+                p.confirmed = !p.confirmed;
+                render();
+            } catch (e) { alert(`Erro ao alterar presença: ${e.message}`); }
+        }
+
+        async function removePlayer(id) {
+            if (!isAdmin()) return;
+            if (!confirm('Remover este jogador?')) return;
+            try {
+                const { error } = await supabaseClient.from('jogadores').delete().eq('id', id);
+                if (error) throw error;
+                players = players.filter(p => p.id !== id);
+                teamA = teamA.filter(p => p.id !== id);
+                teamB = teamB.filter(p => p.id !== id);
+                queue = queue.filter(p => p.id !== id);
+                if (gameStarted) {
+                    const requiredWomen = requiredWomenPerTeam(players.filter(p => p.confirmed));
+                    const composed = composeTeams([...queue, ...teamA, ...teamB], [], [], requiredWomen);
+                    teamA = composed.A;
+                    teamB = composed.B;
+                    queue = composed.remaining;
+                    await persistGameState();
+                }
+                render();
+            } catch (e) { alert(`Erro ao remover jogador: ${e.message}`); }
+        }
+
+        async function startGame() {
+            if (!isAdmin()) return;
+            const confirmed = players.filter(p => p.confirmed).map(p => ({ ...p, waitCount: 0 }));
+            if (confirmed.length < 8) return alert('É necessário pelo menos 8 confirmados para iniciar!');
+            const requiredWomen = requiredWomenPerTeam(confirmed);
+            const womenCount = confirmed.filter(p => p.sex === 'F').length;
+            if (womenCount < requiredWomen * 2) return alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);
+            const composed = composeTeams(confirmed, [], [], requiredWomen);
+            teamA = composed.A;
+            teamB = composed.B;
+            queue = composed.remaining;
+            teamAWins = 0;
+            teamBWins = 0;
+            gameStarted = true;
+            try { await persistGameState(); render(); switchTab('quadra'); }
+            catch (e) { alert(`Erro ao salvar o início do jogo: ${e.message}`); }
+        }
+
+        async function handleWin(winner) {
+            if (!isAdmin() || !gameStarted) return;
+            const allCurrent = [...teamA, ...teamB];
+            try {
+                for (const p of allCurrent) {
+                    p.matches++;
+                    if ((winner === 'A' && teamA.some(x => x.id === p.id)) || (winner === 'B' && teamB.some(x => x.id === p.id))) p.wins++;
+                    await updatePlayer(p.id, { partidas: p.matches, vitorias: p.wins });
+                }
+                queue.forEach(p => p.waitCount++);
+                for (const p of queue) await updatePlayer(p.id, { espera: p.waitCount });
+
+                let leaving = [];
+                if (winner === 'A') {
+                    teamAWins++;
+                    teamBWins = 0;
+                    if (teamAWins === 2) { leaving = [...teamA, ...teamB]; teamA = []; teamB = []; teamAWins = 0; }
+                    else { leaving = [...teamB]; teamB = []; }
+                } else {
+                    teamBWins++;
+                    teamAWins = 0;
+                    if (teamBWins === 2) { leaving = [...teamA, ...teamB]; teamA = []; teamB = []; teamBWins = 0; }
+                    else { leaving = [...teamA]; teamA = []; }
+                }
+                leaving.forEach(p => p.waitCount = 0);
+                for (const p of leaving) await updatePlayer(p.id, { espera: 0 });
+
+                const requiredWomen = requiredWomenPerTeam(players.filter(p => p.confirmed));
+                const composed = composeTeams([...queue, ...leaving], teamA, teamB, requiredWomen);
+                teamA = composed.A;
+                teamB = composed.B;
+                queue = composed.remaining;
+                teamA.forEach(p => p.waitCount = 0);
+                teamB.forEach(p => p.waitCount = 0);
+                for (const p of [...teamA, ...teamB]) await updatePlayer(p.id, { espera: 0 });
+                await persistGameState();
+                render();
+            } catch (e) { alert(`Erro ao registrar a vitória: ${e.message}`); }
+        }
+
+        async function moveQueue(idx, dir) {
+            if (!isAdmin()) return;
+            const target = idx + dir;
+            if (target < 0 || target >= queue.length) return;
+            [queue[idx], queue[target]] = [queue[target], queue[idx]];
+            try { await persistGameState(); render(); }
+            catch (e) { alert(`Erro ao salvar a fila: ${e.message}`); }
+        }
+
+        async function resetGame() {
+            if (!isAdmin()) return;
+            if (!confirm('Encerrar o jogo e voltar para a lista?')) return;
+            gameStarted = false;
+            teamA = [];
+            teamB = [];
+            queue = [];
+            teamAWins = 0;
+            teamBWins = 0;
+            try { await persistGameState(); switchTab('lista'); render(); }
+            catch (e) { alert(`Erro ao reiniciar o jogo: ${e.message}`); }
+        }
+
+        function subscribeRealtime() {
+            if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+            realtimeChannel = supabaseClient.channel('volei-detran-live')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'jogadores' }, async () => {
+                    if (!syncing) await loadDatabase();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_jogo' }, async () => {
+                    if (!syncing) await loadDatabase();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'jogo_jogadores' }, async () => {
+                    if (!syncing) await loadDatabase();
+                })
+                .subscribe((status) => {
+                    if (status === 'CHANNEL_ERROR') console.warn('Falha no canal Realtime. Verifique se as tabelas foram adicionadas ao supabase_realtime.');
+                });
+        }
+
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+            currentUser = session?.user || null;
+            currentAdmin = currentUser?.email || null;
+            render();
+        });
+
+        (async function init() {
+            try {
+                await ensureAdmin();
+                await loadDatabase();
+                subscribeRealtime();
+            } catch (e) {
+                loading = false;
+                render();
+                alert(`Não foi possível conectar ao banco. Execute primeiro o volei-detran-schema.sql no Supabase.\n\nDetalhe: ${e.message}`);
+                console.error(e);
+            }
+        })();
+    </script>
+</body>
+</html>
