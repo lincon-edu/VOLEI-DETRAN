@@ -4,97 +4,441 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rotação Vôlei</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #f3f4f6; color: #1f2937; padding-bottom: 75px; }
-        .container { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; display: flex; flex-direction: column; }
-        .header { background: #16a34a; color: white; padding: 12px 16px; font-weight: bold; font-size: 17px; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
-        .header-actions { display: flex; gap: 8px; align-items: center; }
-        .header button { border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; }
-        .btn-auth { background: #15803d; color: white; border: 1px solid #86efac !important; }
-        .btn-danger { background: #ef4444; color: white; }
-        .content { padding: 16px; flex: 1; }
-        
-        .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
-        .card-header { background: #f9fafb; padding: 10px 14px; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
-        .badge { background: #16a34a; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+        :root{
+            --bg:#070B16;
+            --surface:#0F1729;
+            --surface-2:#151F36;
+            --line:#1E2A45;
+            --lime:#B9FF3D;
+            --lime-deep:#8FD41F;
+            --blue:#3B82F6;
+            --blue-deep:#1D4ED8;
+            --red:#FF4D4D;
+            --red-deep:#B91C1C;
+            --amber:#F59E0B;
+            --text:#E8EDF7;
+            --muted:#8A97B1;
+            --radius:16px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        html,body{ background: var(--bg); }
+        body {
+            color: var(--text);
+            padding-bottom: 96px;
+            background:
+                radial-gradient(900px 380px at 50% -8%, rgba(185,255,61,.10), transparent 70%),
+                radial-gradient(700px 320px at 100% 100%, rgba(59,130,246,.10), transparent 70%),
+                var(--bg);
+            -webkit-tap-highlight-color: transparent;
+        }
+        button{ font-family: inherit; transition: transform .12s ease, filter .15s ease, box-shadow .2s ease; }
+        button:active{ transform: scale(.96); }
 
+        .container {
+            max-width: 480px; margin: 0 auto;
+            background: linear-gradient(180deg, rgba(15,23,41,.6), rgba(7,11,22,.9));
+            min-height: 100vh; display: flex; flex-direction: column;
+            border-left: 1px solid rgba(30,42,69,.6); border-right: 1px solid rgba(30,42,69,.6);
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: linear-gradient(180deg, #101A30 0%, #0B1224 100%);
+            color: white; padding: 14px 16px;
+            position: sticky; top: 0; z-index: 10;
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            border-bottom: 1px solid var(--line);
+            box-shadow: 0 8px 24px rgba(0,0,0,.45);
+        }
+        .brand{ display:flex; align-items:center; gap:9px; min-width:0; }
+        .brand-mark{
+            width:34px; height:34px; border-radius:11px; flex-shrink:0;
+            background: conic-gradient(from 210deg, var(--lime), var(--blue), var(--lime));
+            display:flex; align-items:center; justify-content:center; font-size:17px;
+            box-shadow: 0 0 18px rgba(185,255,61,.35);
+        }
+        .brand-text{ display:flex; flex-direction:column; line-height:1; min-width:0; }
+        .brand-title{ font-family:'Archivo Black', sans-serif; font-size:14px; letter-spacing:.02em; text-transform:uppercase; white-space:nowrap; }
+        .brand-sub{ font-family:'Barlow Condensed', sans-serif; font-size:11px; letter-spacing:.2em; color:var(--lime); text-transform:uppercase; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+        @media (max-width: 380px){ .brand-sub{ display:none; } .brand-title{ font-size:13px; } }
+        .live-badge{
+            display:inline-flex; align-items:center; gap:6px; font-size:9.5px; font-weight:800;
+            letter-spacing:.14em; text-transform:uppercase; color:#ff8080;
+            background:rgba(255,77,77,.12); border:1px solid rgba(255,77,77,.35);
+            padding:3px 8px; border-radius:999px; white-space:nowrap;
+        }
+        .live-badge::before{ content:''; width:6px; height:6px; border-radius:50%; background:#ff4d4d; box-shadow:0 0 8px #ff4d4d; animation:blink 1.1s infinite; }
+        @keyframes blink{ 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.35; transform:scale(.8)} }
+        .header-actions { display: flex; gap: 6px; align-items: center; flex-shrink:0; }
+        .header button {
+            border: none; padding: 8px 10px; border-radius: 999px; font-size: 10.5px;
+            font-weight: 800; letter-spacing:.06em; text-transform:uppercase; cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-auth { background: rgba(185,255,61,.12); color: var(--lime); border: 1px solid rgba(185,255,61,.45) !important; }
+        .btn-danger { background: rgba(255,77,77,.14); color: #ff8a8a; border: 1px solid rgba(255,77,77,.45) !important; }
+
+        .content { padding: 16px; flex: 1; }
+        .content > *{ animation: rise .32s ease both; }
+        @keyframes rise{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: linear-gradient(180deg, var(--surface) 0%, #0D1425 100%);
+            border: 1px solid var(--line); border-radius: var(--radius);
+            margin-bottom: 16px; overflow: hidden;
+            box-shadow: 0 10px 28px rgba(0,0,0,.35);
+        }
+        .card-header {
+            background: rgba(255,255,255,.03);
+            padding: 12px 14px; border-bottom: 1px solid var(--line);
+            display: flex; justify-content: space-between; align-items: center; gap:8px;
+            font-family:'Barlow Condensed', sans-serif; font-weight: 700; font-size: 15px;
+            letter-spacing:.16em; text-transform: uppercase;
+        }
+        .card-header .hint{ font-family:'Inter',sans-serif; font-size:11px; letter-spacing:.04em; color:var(--muted); text-transform:none; font-weight:600; }
+        .badge {
+            background: linear-gradient(135deg, var(--lime), var(--lime-deep));
+            color: #0A1120; padding: 4px 10px; border-radius: 999px;
+            font-family:'Inter',sans-serif; font-size: 11px; font-weight: 800; letter-spacing:.02em;
+            box-shadow: 0 0 16px rgba(185,255,61,.28);
+        }
+
+        /* ===== INPUTS ===== */
         .input-group { display: flex; gap: 8px; margin-bottom: 16px; }
-        .input-group input { flex: 1; min-width:0; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; outline: none; }
-        .input-group select { width:72px; padding:12px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:15px; background:white; }
-        .sex-tag { font-size:10px; font-weight:bold; padding:2px 6px; border-radius:10px; margin-left:6px; background:#e5e7eb; color:#4b5563; }
-        .sex-tag.f { background:#fce7f3; color:#9d174d; }
-        .btn-add { background: #16a34a; color: white; border: none; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 18px; }
+        .input-group input {
+            flex: 1; min-width: 0; padding: 13px 14px;
+            background: var(--surface-2); border: 1px solid var(--line);
+            border-radius: 12px; font-size: 15px; outline: none; color: var(--text);
+        }
+        .input-group input::placeholder{ color:#5D6B87; }
+        .input-group input:focus{ border-color: rgba(185,255,61,.55); box-shadow: 0 0 0 3px rgba(185,255,61,.12); }
+        .input-group select {
+            width: 74px; padding: 13px 8px; background: var(--surface-2);
+            border: 1px solid var(--line); border-radius: 12px; font-size: 15px; color: var(--text); outline:none;
+        }
+        .btn-add {
+            background: linear-gradient(135deg, var(--lime), var(--lime-deep)); color: #0A1120;
+            border: none; padding: 0 18px; border-radius: 12px; font-weight: 900;
+            cursor: pointer; font-size: 20px; line-height: 1;
+            box-shadow: 0 6px 18px rgba(185,255,61,.25);
+        }
 
         ul { list-style: none; }
-        li { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
-        li:last-child { border-bottom: none; }
+        #players-list, #queue-list, #resenha-list{ padding: 10px; max-height: 60vh; overflow-y: auto; }
+        #players-list::-webkit-scrollbar, #queue-list::-webkit-scrollbar, #resenha-list::-webkit-scrollbar, .team-list::-webkit-scrollbar{ width:6px; }
+        #players-list::-webkit-scrollbar-thumb, #queue-list::-webkit-scrollbar-thumb, #resenha-list::-webkit-scrollbar-thumb, .team-list::-webkit-scrollbar-thumb{ background:#25314F; border-radius:99px; }
 
-        .check-btn { width: 30px; height: 30px; border-radius: 50%; border: none; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 10px; }
-        .btn-del { background: none; border: none; color: #ef4444; font-size: 16px; cursor: pointer; padding: 6px; }
+        /* ===== LISTA DE JOGADORES ===== */
+        .list-row{
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+            background: var(--surface-2); border: 1px solid var(--line);
+            border-radius: 12px; padding: 9px 10px; margin-bottom: 8px;
+            animation: fadeIn .28s ease both;
+        }
+        @keyframes fadeIn{ from{opacity:0; transform:translateX(-6px)} to{opacity:1; transform:none} }
+        .list-row:last-child{ margin-bottom:0; }
+        .row-left{ display:flex; align-items:center; gap:9px; min-width:0; flex:1; }
+        .row-num{
+            width:22px; text-align:center; color:#5D6B87; font-size:12px; font-weight:800; flex-shrink:0;
+            font-family:'Barlow Condensed',sans-serif;
+        }
+        .row-main{ display:flex; flex-direction:column; gap:4px; min-width:0; }
+        .row-name{
+            font-size: 14.5px; font-weight: 700; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .row-name.off{ color:#5D6B87; text-decoration: line-through; text-decoration-color: rgba(255,77,77,.6); }
+        .row-meta{ display:flex; align-items:center; gap:6px; }
+        .btn-del {
+            background: rgba(255,77,77,.10); border: 1px solid rgba(255,77,77,.25);
+            color: #ff8a8a; font-size: 13px; cursor: pointer; padding: 7px 9px; border-radius: 9px; flex-shrink:0;
+        }
 
-        .start-btn { width: 100%; background: #16a34a; color: white; padding: 14px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .sex-tag {
+            font-size: 9.5px; font-weight: 900; padding: 2px 7px; border-radius: 999px;
+            background: rgba(59,130,246,.16); color: #7FB1FF; border: 1px solid rgba(59,130,246,.35);
+            letter-spacing:.06em;
+        }
+        .sex-tag.f { background: rgba(236,72,153,.16); color:#FF8FC5; border-color: rgba(236,72,153,.35); }
 
-        /* Quadra */
+        .status-label {
+            font-size: 9px; font-weight: 900; letter-spacing:.1em; text-transform: uppercase;
+            padding: 2.5px 7px; border-radius: 999px; white-space: nowrap;
+        }
+        .status-label.confirmado { background: rgba(34,197,94,.14); color:#5FE38C; border:1px solid rgba(34,197,94,.35); }
+        .status-label.ausente { background: rgba(255,77,77,.14); color:#FF8A8A; border:1px solid rgba(255,77,77,.35); }
+        .status-label.pendente { background: rgba(245,158,11,.14); color:#FBBF24; border:1px solid rgba(245,158,11,.35); }
+
+        .status-btn {
+            width: 32px; height: 32px; border-radius: 10px; border: none; color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; font-size: 14px; cursor: pointer; flex-shrink: 0;
+        }
+        .status-btn:disabled{ opacity:.5; cursor: default; }
+        .status-confirmado { background: linear-gradient(135deg,#22c55e,#15803d); box-shadow: 0 0 14px rgba(34,197,94,.30); }
+        .status-ausente { background: linear-gradient(135deg,#ef4444,#b91c1c); box-shadow: 0 0 14px rgba(239,68,68,.25); }
+        .status-pendente { background: linear-gradient(135deg,#f59e0b,#b45309); box-shadow: 0 0 14px rgba(245,158,11,.25); }
+
+        .summary{
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+            padding: 12px 14px; border-top: 1px solid var(--line); background: rgba(255,255,255,.02);
+        }
+        .summary-item{ text-align:center; background:var(--surface-2); border:1px solid var(--line); border-radius:11px; padding:9px 4px; }
+        .summary-val{ font-family:'Archivo Black',sans-serif; font-size:17px; color:var(--lime); }
+        .summary-val.f{ color:#FF8FC5; } .summary-val.m{ color:#7FB1FF; }
+        .summary-lbl{ font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:3px; font-weight:700; }
+
+        /* ===== BOTÕES PRINCIPAIS ===== */
+        .start-btn {
+            width: 100%; background: linear-gradient(135deg, var(--lime), var(--lime-deep));
+            color: #0A1120; padding: 16px; border-radius: 14px; border: none;
+            font-family:'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700;
+            letter-spacing:.18em; text-transform: uppercase; cursor: pointer;
+            box-shadow: 0 10px 26px rgba(185,255,61,.28);
+        }
+        .start-btn:hover{ filter:brightness(1.06); }
+
+        /* ===== PLACAR ===== */
+        .scoreboard{
+            display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+            background: linear-gradient(180deg, #121C33, #0B1224);
+            border: 1px solid var(--line); border-radius: var(--radius);
+            padding: 14px 12px; margin-bottom: 14px; gap: 8px;
+            box-shadow: 0 12px 30px rgba(0,0,0,.4); position: relative; overflow: hidden;
+        }
+        .scoreboard::before{
+            content:''; position:absolute; inset:0;
+            background: repeating-linear-gradient(115deg, rgba(255,255,255,.03) 0 12px, transparent 12px 26px);
+            pointer-events:none;
+        }
+        .score-side{ display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; }
+        .score-team{
+            font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700;
+            letter-spacing:.2em; text-transform:uppercase;
+        }
+        .score-side.a .score-team{ color:#7FB1FF; } .score-side.b .score-team{ color:#FF8A8A; }
+        .score-num{
+            font-family:'Archivo Black',sans-serif; font-size:44px; line-height:1;
+            color:var(--text); text-shadow:0 0 22px rgba(255,255,255,.14);
+        }
+        .score-side.a .score-num{ color:#9EC5FF; } .score-side.b .score-num{ color:#FFAFAF; }
+        .seq{ display:flex; gap:6px; }
+        .seq i{
+            width:22px; height:7px; border-radius:99px; background:rgba(255,255,255,.10);
+            border:1px solid rgba(255,255,255,.10); transition:.3s;
+        }
+        .score-side.a .seq i.on{ background:var(--blue); box-shadow:0 0 12px rgba(59,130,246,.7); }
+        .score-side.b .seq i.on{ background:var(--red); box-shadow:0 0 12px rgba(255,77,77,.7); }
+        .vs{
+            font-family:'Archivo Black',sans-serif; font-size:13px; color:var(--lime);
+            background:rgba(185,255,61,.10); border:1px solid rgba(185,255,61,.30);
+            padding:7px 9px; border-radius:10px; letter-spacing:.06em;
+        }
+
+        /* ===== QUADRA / TIMES ===== */
         .teams-grid { display: flex; gap: 10px; margin-bottom: 16px; }
-        .team-col { flex: 1; border-radius: 8px; border: 2px solid #e5e7eb; display: flex; flex-direction: column; overflow: hidden; background: white; }
-        .team-a { border-color: #3b82f6; }
-        .team-b { border-color: #ef4444; }
-        .team-title { color: white; padding: 8px 10px; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; }
-        .team-title-a { background: #3b82f6; }
-        .team-title-b { background: #ef4444; }
-        .team-list { min-height: 140px; padding: 6px; flex: 1; }
-        .team-list li { padding: 6px 4px; font-size: 13px; font-weight: 500; border-bottom: 1px solid #f9fafb; }
-        .btn-win-a { width: 100%; padding: 12px 0; background: #dbeafe; color: #1e40af; border: none; border-top: 1px solid #bfdbfe; font-weight: bold; cursor: pointer; }
-        .btn-win-b { width: 100%; padding: 12px 0; background: #fee2e2; color: #991b1b; border: none; border-top: 1px solid #fecaca; font-weight: bold; cursor: pointer; }
+        .team-col {
+            flex: 1; border-radius: var(--radius); border: 1px solid var(--line);
+            display: flex; flex-direction: column; overflow: hidden;
+            background: linear-gradient(180deg, var(--surface), #0C1322);
+            box-shadow: 0 10px 26px rgba(0,0,0,.35);
+        }
+        .team-a { border-color: rgba(59,130,246,.55); box-shadow: 0 0 0 1px rgba(59,130,246,.15), 0 12px 28px rgba(0,0,0,.4); }
+        .team-b { border-color: rgba(255,77,77,.55); box-shadow: 0 0 0 1px rgba(255,77,77,.15), 0 12px 28px rgba(0,0,0,.4); }
+        .team-title {
+            color: white; padding: 9px 10px; font-weight: 800; font-size: 12px;
+            display: flex; justify-content: space-between; align-items:center; gap:6px;
+            font-family:'Barlow Condensed',sans-serif; letter-spacing:.14em; text-transform:uppercase;
+            position:relative; overflow:hidden;
+        }
+        .team-title::after{
+            content:''; position:absolute; inset:0;
+            background: repeating-linear-gradient(120deg, rgba(255,255,255,.10) 0 8px, transparent 8px 18px);
+            opacity:.5; pointer-events:none;
+        }
+        .team-title span{ position:relative; z-index:1; }
+        .team-title-a { background: linear-gradient(135deg, var(--blue), var(--blue-deep)); }
+        .team-title-b { background: linear-gradient(135deg, var(--red), var(--red-deep)); }
+        .team-list { min-height: 132px; padding: 7px; flex: 1; display:flex; flex-direction:column; gap:5px; }
+        .team-player{
+            display:flex; align-items:center; gap:7px; padding: 7px 6px;
+            background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06);
+            border-radius: 9px; font-size: 12.5px; font-weight: 700;
+        }
+        .jersey{
+            width:20px; height:20px; border-radius:6px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            font-family:'Archivo Black',sans-serif; font-size:10px; color:#0A1120;
+        }
+        .team-a .jersey{ background: linear-gradient(135deg,#7FB1FF,#3B82F6); }
+        .team-b .jersey{ background: linear-gradient(135deg,#FF9C9C,#FF4D4D); }
+        .tp-name{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .tp-jog{ color:#5D6B87; font-size:10px; font-weight:700; }
+        .tp-x{ cursor:pointer; color:#ff8a8a; font-size:12px; padding:2px 4px; }
+        .btn-win-a, .btn-win-b {
+            width: 100%; padding: 13px 0; border: none; cursor: pointer;
+            font-family:'Barlow Condensed',sans-serif; font-size: 16px; font-weight: 700;
+            letter-spacing:.16em; text-transform: uppercase;
+        }
+        .btn-win-a { background: linear-gradient(135deg, rgba(59,130,246,.28), rgba(29,78,216,.45)); color:#BFD7FF; border-top: 1px solid rgba(59,130,246,.45); }
+        .btn-win-b { background: linear-gradient(135deg, rgba(255,77,77,.28), rgba(185,28,28,.45)); color:#FFC4C4; border-top: 1px solid rgba(255,77,77,.45); }
+        .btn-win-a:hover{ filter:brightness(1.25); } .btn-win-b:hover{ filter:brightness(1.25); }
 
-        /* Fila */
-        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
-        .queue-item.priority { background: #fff7ed; border-left: 4px solid #f97316; }
-        .queue-controls button { background: #f3f4f6; border: 1px solid #e5e7eb; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
-        .tag-wait { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e5e7eb; font-weight: bold; }
-        .tag-wait.urgent { background: #f97316; color: white; }
+        /* ===== FILA ===== */
+        .queue-item{
+            display:flex; justify-content:space-between; align-items:center; gap:8px;
+            background: var(--surface-2); border:1px solid var(--line);
+            border-radius: 12px; padding: 9px 10px; margin-bottom: 8px;
+            transition: transform .2s ease, background .2s ease;
+        }
+        .queue-item.priority{
+            background: linear-gradient(90deg, rgba(245,158,11,.16), var(--surface-2) 55%);
+            border-color: rgba(245,158,11,.45);
+            box-shadow: inset 3px 0 0 var(--amber);
+        }
+        .q-left{ display:flex; align-items:center; gap:9px; min-width:0; }
+        .q-pos{
+            width:26px; height:26px; border-radius:8px; flex-shrink:0;
+            background:rgba(185,255,61,.12); border:1px solid rgba(185,255,61,.3); color:var(--lime);
+            display:flex; align-items:center; justify-content:center;
+            font-family:'Archivo Black',sans-serif; font-size:11px;
+        }
+        .q-name{ font-size:14px; font-weight:700; }
+        .q-meta{ display:flex; align-items:center; gap:6px; margin-top:3px; }
+        .tag-wait {
+            font-size: 10px; padding: 2px 7px; border-radius: 999px; font-weight: 800;
+            background: rgba(255,255,255,.07); color: var(--muted); border:1px solid rgba(255,255,255,.08);
+            letter-spacing:.04em;
+        }
+        .tag-wait.urgent { background: rgba(245,158,11,.18); color:#FBBF24; border-color: rgba(245,158,11,.4); }
+        .queue-controls{ display:flex; gap:5px; }
+        .queue-controls button {
+            background: rgba(255,255,255,.05); border: 1px solid var(--line); color:var(--text);
+            padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size:11px; font-weight:800;
+        }
+        .queue-controls button:disabled{ opacity:.3; cursor:default; }
+        .queue-controls button:last-child{ color:#ff8a8a; border-color: rgba(255,77,77,.3); background: rgba(255,77,77,.10); }
+        .empty-state{ color:#5D6B87; text-align:center; padding: 22px 12px !important; font-size:13px; font-weight:600; }
 
-        /* Resenha / Ranking */
-        .rank-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #f3f4f6; }
-        .rank-pos { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; color: #fff; background: #9ca3af; }
-        .rank-pos.gold { background: #eab308; }
-        .rank-pos.silver { background: #94a3b8; }
-        .rank-pos.bronze { background: #d97706; }
-        .rank-details { flex: 1; }
-        .rank-stats { display: flex; gap: 12px; font-size: 12px; color: #6b7280; margin-top: 2px; }
-        .rank-pct { text-align: right; }
-        .rank-pct-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; font-weight: bold; }
-        .rank-pct-val { font-size: 15px; font-weight: bold; color: #16a34a; }
+        /* ===== RESENHA / PÓDIO ===== */
+        .podium{ display:flex; align-items:flex-end; gap:8px; padding: 16px 12px 0; }
+        .pod-slot{ flex:1; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; }
+        .pod-medal{ font-size:26px; line-height:1; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+        .pod-name{ font-size:12.5px; font-weight:800; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .pod-stats{ font-size:10px; color:var(--muted); font-weight:700; }
+        .pod-pct{ font-family:'Archivo Black',sans-serif; font-size:15px; color:var(--lime); }
+        .pod-step{
+            width:100%; border-radius:10px 10px 0 0; margin-top:6px;
+            background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+            border:1px solid var(--line); border-bottom:none;
+            display:flex; align-items:flex-start; justify-content:center;
+            font-family:'Archivo Black',sans-serif; color:rgba(255,255,255,.35); padding-top:6px;
+        }
+        .pod-slot.first .pod-step{ height:78px; background:linear-gradient(180deg, rgba(185,255,61,.35), rgba(185,255,61,.06)); border-color:rgba(185,255,61,.45); color:rgba(185,255,61,.85); }
+        .pod-slot.second .pod-step{ height:54px; }
+        .pod-slot.third .pod-step{ height:38px; }
+        .pod-slot.first .pod-pct{ font-size:17px; }
 
-        /* Modal Login */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
-        .modal-body { background: white; width: 90%; max-width: 360px; padding: 20px; border-radius: 12px; }
-        .modal-body h3 { margin-bottom: 12px; }
-        .modal-body input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+        .rank-item{
+            display:flex; align-items:center; gap:11px; padding: 10px;
+            background: var(--surface-2); border:1px solid var(--line);
+            border-radius: 12px; margin-bottom: 8px;
+        }
+        .rank-item:last-child{ margin-bottom:0; }
+        .rank-pos {
+            width: 30px; height: 30px; border-radius: 9px; display:flex; align-items:center; justify-content:center;
+            font-family:'Archivo Black',sans-serif; font-size: 12px; color:#0A1120; background:#3A4763; flex-shrink:0;
+        }
+        .rank-pos.gold { background: linear-gradient(135deg,#FFE082,#F59E0B); box-shadow:0 0 14px rgba(245,158,11,.35); }
+        .rank-pos.silver { background: linear-gradient(135deg,#E2E8F0,#94A3B8); }
+        .rank-pos.bronze { background: linear-gradient(135deg,#F3BA7A,#B45309); }
+        .rank-details{ flex:1; min-width:0; }
+        .rank-name{ font-weight:800; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .rank-stats{ display:flex; gap:10px; font-size:11px; color:var(--muted); margin-top:3px; font-weight:600; }
+        .rank-stats b{ color:var(--lime); }
+        .bar{ height:5px; border-radius:99px; background:rgba(255,255,255,.08); margin-top:7px; overflow:hidden; }
+        .bar span{ display:block; height:100%; border-radius:99px; background:linear-gradient(90deg, var(--lime-deep), var(--lime)); box-shadow:0 0 10px rgba(185,255,61,.5); }
+        .rank-pct{ text-align:right; flex-shrink:0; }
+        .rank-pct-label{ font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing:.1em; font-weight:800; }
+        .rank-pct-val{ font-family:'Archivo Black',sans-serif; font-size:17px; color: var(--lime); }
+        .list-section-title{
+            font-family:'Barlow Condensed',sans-serif; font-size:12px; letter-spacing:.2em;
+            text-transform:uppercase; color:var(--muted); margin: 4px 2px 10px; font-weight:700;
+        }
 
-        /* Tabbar */
-        .tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 60px; background: white; border-top: 1px solid #e5e7eb; display: flex; z-index: 20; }
-        .tab-btn { flex: 1; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #6b7280; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
-        .tab-btn.active { color: #16a34a; border-top: 3px solid #16a34a; }
-        .status-btn { width:28px; height:28px; border:none; border-radius:7px; color:white; font-weight:bold; cursor:pointer; flex-shrink:0; }
-        .status-confirmado { background:#16a34a; }
-        .status-ausente { background:#ef4444; }
-        .status-pendente { background:#f59e0b; }
-        .status-label { font-size:10px; font-weight:bold; margin-left:6px; padding:2px 6px; border-radius:10px; white-space:nowrap; }
-        .status-label.confirmado { background:#dcfce7; color:#166534; }
-        .status-label.ausente { background:#fee2e2; color:#991b1b; }
-        .status-label.pendente { background:#fef3c7; color:#92400e; }
+        /* ===== MODAL ===== */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(3,6,14,.78); backdrop-filter: blur(6px); z-index: 50; align-items: center; justify-content: center; padding:20px; }
+        .modal-body {
+            background: linear-gradient(180deg, #131D33, #0C1322);
+            border:1px solid var(--line); width: 100%; max-width: 360px; padding: 22px;
+            border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6);
+            animation: rise .28s ease both;
+        }
+        .modal-body h3 {
+            font-family:'Archivo Black',sans-serif; font-size:16px; text-transform:uppercase; margin-bottom: 4px;
+        }
+        .modal-sub{ font-size:12px; color:var(--muted); margin-bottom:16px; }
+        .modal-body input {
+            width: 100%; padding: 13px 14px; margin-bottom: 10px;
+            background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px;
+            color:var(--text); font-size:14px; outline:none;
+        }
+        .modal-body input:focus{ border-color: rgba(185,255,61,.55); box-shadow:0 0 0 3px rgba(185,255,61,.12); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+        .modal-actions button{ padding:11px 16px; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; }
+        .btn-cancel{ background: rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
+        .btn-ok{ background: linear-gradient(135deg, var(--lime), var(--lime-deep)); color:#0A1120; border:none; letter-spacing:.06em; text-transform:uppercase; }
+
+        /* ===== TABBAR ===== */
+        .tabbar {
+            position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+            width: calc(100% - 28px); max-width: 452px; height: 62px;
+            background: rgba(13,20,37,.92); backdrop-filter: blur(14px);
+            border: 1px solid var(--line); border-radius: 20px;
+            display: flex; gap: 6px; padding: 6px; z-index: 20;
+            box-shadow: 0 16px 40px rgba(0,0,0,.55);
+        }
+        .tab-btn {
+            flex: 1; border: none; background: transparent; color: var(--muted);
+            border-radius: 15px; cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 3px;
+            font-size: 10.5px; font-weight: 800; letter-spacing:.1em; text-transform: uppercase;
+        }
+        .tab-btn .ic{ font-size:17px; line-height:1; }
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--lime), var(--lime-deep));
+            color: #0A1120; box-shadow: 0 6px 20px rgba(185,255,61,.32);
+        }
+
+        /* ===== CONFETE ===== */
+        #confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:60; }
+        .confetti-bit{ position:absolute; top:-16px; width:8px; height:14px; border-radius:2px; animation: confetti-fall linear forwards; }
+        @keyframes confetti-fall{
+            0%{ transform: translateY(0) rotate(0deg) scale(1); opacity:1; }
+            100%{ transform: translateY(108vh) rotate(760deg) scale(.6); opacity:0; }
+        }
+        .pop{ animation: pop .35s ease; }
+        @keyframes pop{ 0%{transform:scale(1)} 40%{transform:scale(1.12)} 100%{transform:scale(1)} }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <span>🏐 Vôlei Detran </span>
+            <div class="brand">
+                <div class="brand-mark">🏐</div>
+                <div class="brand-text">
+                    <span class="brand-title">Vôlei Detran</span>
+                    <span class="brand-sub" id="header-sub">Rotação de Quadra</span>
+                </div>
+            </div>
             <div class="header-actions">
-                <button id="btn-login" class="btn-auth" onclick="openLoginModal()">🔑 Entrar ADM</button>
-                <button id="btn-reset" class="btn-danger" style="display:none;" onclick="resetGame()">Reiniciar</button>
+                <button id="btn-login" class="btn-auth">🔑 Entrar ADM</button>
+                <button id="btn-reset" class="btn-danger" style="display:none;">Reiniciar</button>
             </div>
         </div>
 
@@ -107,74 +451,92 @@
             </div>
             <div class="card">
                 <div class="card-header">
-                    <span>Lista de Jogadores</span>
+                    <span>👥 Convocados</span>
                     <span class="badge" id="confirmed-count">0 Confirmados</span>
                 </div>
-                <ul id="players-list" style="max-height: 480px; overflow-y: auto;"></ul>
-                <div id="player-summary" style="padding:12px 14px; border-top:1px solid #e5e7eb; background:#f9fafb; font-size:13px; line-height:1.7;">
-                    <div><strong>Total Mulheres:</strong> <span id="total-female">0</span></div>
-                    <div><strong>Total Homens:</strong> <span id="total-male">0</span></div>
-                    <div><strong>Total jogadores:</strong> <span id="total-players">0</span></div>
+                <ul id="players-list"></ul>
+                <div id="player-summary" class="summary">
+                    <div class="summary-item"><div class="summary-val f" id="total-female">0</div><div class="summary-lbl">Mulheres</div></div>
+                    <div class="summary-item"><div class="summary-val m" id="total-male">0</div><div class="summary-lbl">Homens</div></div>
+                    <div class="summary-item"><div class="summary-val" id="total-players">0</div><div class="summary-lbl">Total</div></div>
                 </div>
             </div>
-            <button class="start-btn" id="btn-start" style="display:none;" onclick="startGame()">Começar Jogo ➔</button>
+            <button class="start-btn" id="btn-start" style="display:none;">Começar Jogo ➔</button>
         </div>
 
         <!-- ABA 2: QUADRA -->
         <div class="content" id="tab-quadra" style="display:none;">
+            <div class="scoreboard">
+                <div class="score-side a">
+                    <span class="score-team">Time A</span>
+                    <span class="score-num" id="score-a">0</span>
+                    <div class="seq" id="seq-a"><i></i><i></i></div>
+                </div>
+                <div class="vs">VS</div>
+                <div class="score-side b">
+                    <span class="score-team">Time B</span>
+                    <span class="score-num" id="score-b">0</span>
+                    <div class="seq" id="seq-b"><i></i><i></i></div>
+                </div>
+            </div>
+
             <div class="teams-grid">
                 <div class="team-col team-a" id="card-team-a">
-                    <div class="team-title team-title-a"><span>TIME A</span><span id="wins-a">0 🏆</span></div>
+                    <div class="team-title team-title-a"><span>Time A</span><span id="wins-a">0 🏆</span></div>
                     <ul class="team-list" id="list-team-a"></ul>
-                    <button class="btn-win-a" id="btn-win-a" style="display:none;" onclick="handleWin('A')">VENCEU</button>
+                    <button class="btn-win-a" id="btn-win-a" style="display:none;">Venceu</button>
                 </div>
                 <div class="team-col team-b" id="card-team-b">
-                    <div class="team-title team-title-b"><span>TIME B</span><span id="wins-b">0 🏆</span></div>
+                    <div class="team-title team-title-b"><span>Time B</span><span id="wins-b">0 🏆</span></div>
                     <ul class="team-list" id="list-team-b"></ul>
-                    <button class="btn-win-b" id="btn-win-b" style="display:none;" onclick="handleWin('B')">VENCEU</button>
+                    <button class="btn-win-b" id="btn-win-b" style="display:none;">Venceu</button>
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <span>Fila de Espera</span>
-                    <span style="font-size:12px; color:#6b7280;" id="queue-count">0 pessoas</span>
+                    <span>⏳ Fila de Espera</span>
+                    <span class="hint" id="queue-count">0 pessoas</span>
                 </div>
-                <ul id="queue-list" style="max-height: 420px; overflow-y: auto;"></ul>
+                <ul id="queue-list"></ul>
             </div>
         </div>
 
         <!-- ABA 3: RESENHA -->
         <div class="content" id="tab-resenha" style="display:none;">
             <div class="card">
-                <div class="card-header" style="background: #15803d; color: white;">
-                    <span>📊 Estatísticas & Ranking</span>
-                    <span style="font-size:11px; opacity:0.9;">Mais Vitórias</span>
+                <div class="card-header" style="background:linear-gradient(135deg, rgba(185,255,61,.16), rgba(59,130,246,.12));">
+                    <span>🏆 Resenha & Ranking</span>
+                    <span class="hint">Mais vitórias</span>
                 </div>
-                <ul id="resenha-list" style="max-height: 520px; overflow-y: auto;"></ul>
+                <div id="resenha-podium"></div>
+                <ul id="resenha-list"></ul>
             </div>
         </div>
 
         <!-- TABBAR INFERIOR -->
         <div class="tabbar">
-            <button class="tab-btn active" id="btn-tab-lista" onclick="switchTab('lista')">Lista</button>
-            <button class="tab-btn" id="btn-tab-quadra" onclick="switchTab('quadra')">Quadra</button>
-            <button class="tab-btn" id="btn-tab-resenha" onclick="switchTab('resenha')">Resenha</button>
+            <button class="tab-btn active" id="btn-tab-lista"><span class="ic">📋</span>Lista</button>
+            <button class="tab-btn" id="btn-tab-quadra"><span class="ic">🏐</span>Quadra</button>
+            <button class="tab-btn" id="btn-tab-resenha"><span class="ic">🏆</span>Resenha</button>
         </div>
     </div>
 
     <!-- MODAL DE LOGIN ADM -->
     <div class="modal" id="login-modal">
         <div class="modal-body">
-            <h3>Acesso Administrativo</h3>
+            <h3>Acesso ADM</h3>
+            <div class="modal-sub">Entre com as credenciais do Supabase para liberar os controles da partida.</div>
             <input type="text" id="admin-email" placeholder="E-mail">
             <input type="password" id="admin-pass" placeholder="Senha">
             <div class="modal-actions">
-                <button onclick="closeLoginModal()" style="padding:8px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer;">Cancelar</button>
-                <button onclick="loginAdmin()" style="padding:8px 14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
+                <button class="btn-cancel" onclick="closeLoginModal()">Cancelar</button>
+                <button class="btn-ok" onclick="loginAdmin()">Entrar</button>
             </div>
         </div>
     </div>
+
+    <div id="confetti"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -197,19 +559,51 @@ async function persistState(){const {error}=await db.from('estado_jogo').upsert(
 function syncWaitCounts(){const counts=new Map();queue.forEach(p=>counts.set(p.id,p.waitCount));teamA.forEach(p=>counts.set(p.id,p.waitCount));teamB.forEach(p=>counts.set(p.id,p.waitCount));players.forEach(p=>{if(counts.has(p.id))p.waitCount=counts.get(p.id);else p.waitCount=0})}
 async function persistAll(){syncWaitCounts();await Promise.all([persistPlayers(),persistState()])}
 function setupRealtime(){db.channel('volei-detran-sync').on('postgres_changes',{event:'*',schema:'public',table:'jogadores'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'estado_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).subscribe()}
+
+function showConfetti(side){
+    const box=document.getElementById('confetti');
+    const base=side==='A'?[ '#3B82F6','#60A5FA','#B9FF3D','#FFFFFF','#93C5FD' ]:[ '#FF4D4D','#FF8A8A','#B9FF3D','#FFFFFF','#FCA5A5' ];
+    for(let i=0;i<80;i++){
+        const bit=document.createElement('span');
+        bit.className='confetti-bit';
+        bit.style.left=(Math.random()*100)+'vw';
+        bit.style.background=base[Math.floor(Math.random()*base.length)];
+        bit.style.animationDelay=(Math.random()*.35)+'s';
+        bit.style.animationDuration=(1.6+Math.random()*1.5)+'s';
+        bit.style.width=(5+Math.random()*6)+'px';
+        bit.style.height=(9+Math.random()*8)+'px';
+        if(Math.random()>.6)bit.style.borderRadius='50%';
+        box.appendChild(bit);
+        setTimeout(()=>bit.remove(),3600);
+    }
+}
+
 function render() {
             const isAdmin = currentAdmin !== null;
 
             // Header ADM
             const btnLogin = document.getElementById('btn-login');
             if (isAdmin) {
-                btnLogin.innerText = `Sair (${currentAdmin})`;
+                btnLogin.innerText = 'Sair ADM';
+                btnLogin.title = currentAdmin;
                 btnLogin.onclick = logoutAdmin;
                 btnLogin.className = 'btn-danger';
             } else {
-                btnLogin.innerText = '🔑 Entrar ADM';
+                btnLogin.innerText = '🔑 Entrar';
+                btnLogin.title = 'Acesso administrativo';
                 btnLogin.onclick = openLoginModal;
                 btnLogin.className = 'btn-auth';
+            }
+
+            const btnReset = document.getElementById('btn-reset');
+            btnReset.style.display = (gameStarted && isAdmin) ? 'block' : 'none';
+            btnReset.onclick = resetGame;
+
+            const headerSub = document.getElementById('header-sub');
+            if (gameStarted) {
+                headerSub.innerHTML = '<span class="live-badge">Ao vivo</span>';
+            } else {
+                headerSub.innerText = 'Rotação de Quadra';
             }
 
             document.getElementById('admin-add-section').style.display = isAdmin ? 'flex' : 'none';
@@ -222,16 +616,21 @@ function render() {
 
             players.forEach((p, idx) => {
                 const li = document.createElement('li');
+                li.className = 'list-row';
                 const statusClass = p.status === 'confirmado' ? 'status-confirmado' : p.status === 'ausente' ? 'status-ausente' : 'status-pendente';
                 const statusLabel = p.status === 'confirmado' ? 'Confirmado' : p.status === 'ausente' ? 'Ausente' : 'Pendente';
                 const statusIcon = p.status === 'confirmado' ? '✓' : p.status === 'ausente' ? '✕' : '?';
                 li.innerHTML = `
-                    <div style="display:flex; align-items:center; min-width:0;">
+                    <div class="row-left">
                         <button class="status-btn ${statusClass}" title="${isAdmin ? 'Clique para alterar o status' : statusLabel}" ${isAdmin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>${statusIcon}</button>
-                        <span style="width:28px; color:#6b7280; font-size:13px; font-weight:bold; flex-shrink:0;">${idx + 1}.</span>
-                        <span style="font-size:15px; font-weight:600; color:${p.status === 'confirmado' ? '#1f2937' : '#9ca3af'}; text-decoration:${p.status === 'ausente' ? 'line-through' : 'none'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
-                        <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span>
-                        <span class="status-label ${p.status}">${statusLabel}</span>
+                        <span class="row-num">${idx + 1}</span>
+                        <div class="row-main">
+                            <span class="row-name ${p.status === 'confirmado' ? '' : 'off'}">${p.name}</span>
+                            <div class="row-meta">
+                                <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span>
+                                <span class="status-label ${p.status}">${statusLabel}</span>
+                            </div>
+                        </div>
                     </div>
                     ${isAdmin ? `<button class="btn-del" onclick="removePlayer(${p.id})">🗑️</button>` : ''}
                 `;
@@ -244,27 +643,37 @@ function render() {
             document.getElementById('total-male').innerText = totalMale;
             document.getElementById('total-players').innerText = players.length;
 
-            document.getElementById('btn-reset').style.display = (gameStarted && isAdmin) ? 'block' : 'none';
             document.getElementById('btn-start').style.display = (!gameStarted && isAdmin) ? 'block' : 'none';
+            document.getElementById('btn-start').onclick = startGame;
 
-            // Quadra
+            // Placar
+            document.getElementById('score-a').innerText = teamAWins;
+            document.getElementById('score-b').innerText = teamBWins;
             document.getElementById('wins-a').innerText = `${teamAWins} 🏆`;
             document.getElementById('wins-b').innerText = `${teamBWins} 🏆`;
+            [['seq-a', teamAWins], ['seq-b', teamBWins]].forEach(([id, wins]) => {
+                document.querySelectorAll('#' + id + ' i').forEach((dot, i) => dot.classList.toggle('on', i < wins));
+            });
 
+            // Quadra
             const listA = document.getElementById('list-team-a');
             listA.innerHTML = '';
-            teamA.forEach(p => {
-                listA.innerHTML += `<li>${p.name} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span> ${isAdmin ? `<span onclick="removePlayer(${p.id})" style="cursor:pointer; color:#ef4444; float:right;">✕</span>` : ''}</li>`;
+            teamA.forEach((p, i) => {
+                listA.innerHTML += `<li class="team-player"><span class="jersey">${i + 1}</span><span class="tp-name">${p.name}</span><span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span><span class="tp-jog">${p.matches}j</span>${isAdmin ? `<span class="tp-x" onclick="removePlayer(${p.id})">✕</span>` : ''}</li>`;
             });
 
             const listB = document.getElementById('list-team-b');
             listB.innerHTML = '';
-            teamB.forEach(p => {
-                listB.innerHTML += `<li>${p.name} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span> ${isAdmin ? `<span onclick="removePlayer(${p.id})" style="cursor:pointer; color:#ef4444; float:right;">✕</span>` : ''}</li>`;
+            teamB.forEach((p, i) => {
+                listB.innerHTML += `<li class="team-player"><span class="jersey">${i + 1}</span><span class="tp-name">${p.name}</span><span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span><span class="tp-jog">${p.matches}j</span>${isAdmin ? `<span class="tp-x" onclick="removePlayer(${p.id})">✕</span>` : ''}</li>`;
             });
 
-            document.getElementById('btn-win-a').style.display = isAdmin ? 'block' : 'none';
-            document.getElementById('btn-win-b').style.display = isAdmin ? 'block' : 'none';
+            const btnWinA = document.getElementById('btn-win-a');
+            const btnWinB = document.getElementById('btn-win-b');
+            btnWinA.style.display = isAdmin ? 'block' : 'none';
+            btnWinB.style.display = isAdmin ? 'block' : 'none';
+            btnWinA.onclick = () => handleWin('A');
+            btnWinB.onclick = () => handleWin('B');
 
             // Fila de Espera
             const queueEl = document.getElementById('queue-list');
@@ -272,23 +681,27 @@ function render() {
             document.getElementById('queue-count').innerText = `${queue.length} pessoas`;
 
             if (queue.length === 0) {
-                queueEl.innerHTML = '<li style="color:#9ca3af; text-align:center; padding:16px;">Fila vazia</li>';
+                queueEl.innerHTML = '<li class="empty-state">Ninguém aguardando na fila</li>';
             } else {
                 queue.forEach((p, idx) => {
                     const isUrgent = p.waitCount >= 2;
                     queueEl.innerHTML += `
                         <li class="queue-item ${isUrgent ? 'priority' : ''}">
-                            <div>
-                                <span style="color:#9ca3af; font-size:12px; margin-right:4px;">${idx + 1}º</span>
-                                <b>${p.name}</b>
-                                <span style="color:#9ca3af; font-size:11px; margin-left:4px;">(${p.matches}j)</span>
-                                <span class="tag-wait ${isUrgent ? 'urgent' : ''}" style="margin-left:6px;">Espera: ${p.waitCount}</span>
+                            <div class="q-left">
+                                <span class="q-pos">${idx + 1}</span>
+                                <div>
+                                    <div class="q-name">${p.name}</div>
+                                    <div class="q-meta">
+                                        <span class="tag-wait">${p.matches} jogos</span>
+                                        <span class="tag-wait ${isUrgent ? 'urgent' : ''}">Espera: ${p.waitCount}</span>
+                                    </div>
+                                </div>
                             </div>
                             ${isAdmin ? `
                             <div class="queue-controls">
                                 <button onclick="moveQueue(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
                                 <button onclick="moveQueue(${idx}, 1)" ${idx === queue.length - 1 ? 'disabled' : ''}>▼</button>
-                                <button onclick="removePlayer(${p.id})" style="color:#ef4444;">✕</button>
+                                <button onclick="removePlayer(${p.id})">✕</button>
                             </div>` : ''}
                         </li>
                     `;
@@ -298,24 +711,51 @@ function render() {
             // Resenha / Ranking
             const resenhaEl = document.getElementById('resenha-list');
             resenhaEl.innerHTML = '';
+            const podiumEl = document.getElementById('resenha-podium');
+            podiumEl.innerHTML = '';
             const ranked = [...players].sort((a, b) => b.wins - a.wins || b.matches - a.matches);
 
-            ranked.forEach((p, idx) => {
-                const pct = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+            const pctOf = p => p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+            let rest = ranked;
+
+            if (ranked.length >= 3) {
+                const slot = (p, pos, cls) => `
+                    <div class="pod-slot ${cls}">
+                        <div class="pod-medal">${pos === 1 ? '🥇' : pos === 2 ? '🥈' : '🥉'}</div>
+                        <div class="pod-name">${p.name}</div>
+                        <div class="pod-stats">${p.wins}V · ${p.matches}J</div>
+                        <div class="pod-pct">${pctOf(p)}%</div>
+                        <div class="pod-step">${pos}º</div>
+                    </div>`;
+                podiumEl.innerHTML = `<div class="podium">
+                    ${slot(ranked[1], 2, 'second')}
+                    ${slot(ranked[0], 1, 'first')}
+                    ${slot(ranked[2], 3, 'third')}
+                </div>`;
+                rest = ranked.slice(3);
+                if (rest.length) {
+                    resenhaEl.innerHTML = '<div class="list-section-title">Classificação completa</div>';
+                }
+            }
+
+            rest.forEach((p, idx) => {
+                const pct = pctOf(p);
+                const pos = ranked.indexOf(p) + 1;
                 let badgeClass = '';
-                if (idx === 0) badgeClass = 'gold';
-                else if (idx === 1) badgeClass = 'silver';
-                else if (idx === 2) badgeClass = 'bronze';
+                if (pos === 1) badgeClass = 'gold';
+                else if (pos === 2) badgeClass = 'silver';
+                else if (pos === 3) badgeClass = 'bronze';
 
                 resenhaEl.innerHTML += `
                     <li class="rank-item">
-                        <div class="rank-pos ${badgeClass}">${idx + 1}</div>
+                        <div class="rank-pos ${badgeClass}">${pos}</div>
                         <div class="rank-details">
-                            <div style="font-weight:bold; font-size:14px;">${p.name}</div>
+                            <div class="rank-name">${p.name}</div>
                             <div class="rank-stats">
-                                <span>🏐 ${p.matches} Jogos</span>
-                                <span style="color:#16a34a; font-weight:bold;">🏆 ${p.wins} Vitórias</span>
+                                <span>🏐 ${p.matches} jogos</span>
+                                <span><b>🏆 ${p.wins} vitórias</b></span>
                             </div>
+                            <div class="bar"><span style="width:${pct}%"></span></div>
                         </div>
                         <div class="rank-pct">
                             <div class="rank-pct-label">Aprov.</div>
@@ -326,20 +766,12 @@ function render() {
             });
         }
 
-        // Navegação de Abas
-        function switchTab(tab) {
-            currentTab = tab;
-            document.getElementById('tab-lista').style.display = tab === 'lista' ? 'block' : 'none';
-            document.getElementById('tab-quadra').style.display = tab === 'quadra' ? 'block' : 'none';
-            document.getElementById('tab-resenha').style.display = tab === 'resenha' ? 'block' : 'none';
-
-            document.getElementById('btn-tab-lista').className = 'tab-btn' + (tab === 'lista' ? ' active' : '');
-            document.getElementById('btn-tab-quadra').className = 'tab-btn' + (tab === 'quadra' ? ' active' : '');
-            document.getElementById('btn-tab-resenha').className = 'tab-btn' + (tab === 'resenha' ? ' active' : '');
-        }
-
-        
         function switchTab(t){currentTab=t;document.getElementById('tab-lista').style.display=t==='lista'?'block':'none';document.getElementById('tab-quadra').style.display=t==='quadra'?'block':'none';document.getElementById('tab-resenha').style.display=t==='resenha'?'block':'none';document.getElementById('btn-tab-lista').className='tab-btn'+(t==='lista'?' active':'');document.getElementById('btn-tab-quadra').className='tab-btn'+(t==='quadra'?' active':'');document.getElementById('btn-tab-resenha').className='tab-btn'+(t==='resenha'?' active':'')}
+
+        document.getElementById('btn-tab-lista').onclick=()=>switchTab('lista');
+        document.getElementById('btn-tab-quadra').onclick=()=>switchTab('quadra');
+        document.getElementById('btn-tab-resenha').onclick=()=>switchTab('resenha');
+
 function openLoginModal(){document.getElementById('login-modal').style.display='flex'}function closeLoginModal(){document.getElementById('login-modal').style.display='none';document.getElementById('admin-email').value='';document.getElementById('admin-pass').value=''}
 async function loginAdmin(){const email=document.getElementById('admin-email').value.trim(),pass=document.getElementById('admin-pass').value;if(!email||!pass){alert('Informe o e-mail e a senha.');return}const {data,error}=await db.auth.signInWithPassword({email,password:pass});if(error){alert('E-mail ou senha incorretos.');console.error(error);return}currentAdmin=data.user.email;closeLoginModal();render()}
 async function logoutAdmin(){await db.auth.signOut();currentAdmin=null;render()}
@@ -425,7 +857,7 @@ function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
     return{A,B,remaining:available};
 }
 async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<8){alert('É necessário pelo menos 8 confirmados para iniciar!');return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
-async function handleWin(winner){if(!currentAdmin||!gameStarted)return;teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});queue.forEach(p=>p.waitCount++);let leaving=[];if(winner==='A'){teamAWins++;teamBWins=0;if(teamAWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamAWins=0}else{leaving=[...teamB];teamB=[]}}else{teamBWins++;teamAWins=0;if(teamBWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamBWins=0}else{leaving=[...teamA];teamA=[]}}leaving.forEach(p=>p.waitCount=0);const neededA=4-teamA.length,neededB=4-teamB.length,totalNeeded=neededA+neededB;let available=[...queue];const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));const candidatePool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);try{await persistAll();render()}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}}
+async function handleWin(winner){if(!currentAdmin||!gameStarted)return;teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});queue.forEach(p=>p.waitCount++);let leaving=[];if(winner==='A'){teamAWins++;teamBWins=0;if(teamAWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamAWins=0}else{leaving=[...teamB];teamB=[]}}else{teamBWins++;teamAWins=0;if(teamBWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamBWins=0}else{leaving=[...teamA];teamA=[]}}leaving.forEach(p=>p.waitCount=0);const neededA=4-teamA.length,neededB=4-teamB.length,totalNeeded=neededA+neededB;let available=[...queue];const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));const candidatePool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);try{await persistAll();render();showConfetti(winner)}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}}
 async function moveQueue(idx,dir){if(!currentAdmin)return;const target=idx+dir;if(target<0||target>=queue.length)return;[queue[idx],queue[target]]=[queue[target],queue[idx]];try{await persistState();render()}catch(e){[queue[idx],queue[target]]=[queue[target],queue[idx]];alert('Não foi possível salvar a ordem da fila.');console.error(e)}}
 async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha?'))return;players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;try{await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
 async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState()}
