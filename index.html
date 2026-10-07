@@ -78,6 +78,14 @@
         .tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 60px; background: white; border-top: 1px solid #e5e7eb; display: flex; z-index: 20; }
         .tab-btn { flex: 1; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #6b7280; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
         .tab-btn.active { color: #16a34a; border-top: 3px solid #16a34a; }
+        .status-btn { width:28px; height:28px; border:none; border-radius:7px; color:white; font-weight:bold; cursor:pointer; flex-shrink:0; }
+        .status-confirmado { background:#16a34a; }
+        .status-ausente { background:#ef4444; }
+        .status-pendente { background:#f59e0b; }
+        .status-label { font-size:10px; font-weight:bold; margin-left:6px; padding:2px 6px; border-radius:10px; white-space:nowrap; }
+        .status-label.confirmado { background:#dcfce7; color:#166534; }
+        .status-label.ausente { background:#fee2e2; color:#991b1b; }
+        .status-label.pendente { background:#fef3c7; color:#92400e; }
     </style>
 </head>
 <body>
@@ -178,10 +186,13 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentAdmin=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0;
 let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false;
 const jogadoresIniciais=[['Victor','M'],['Joao V','M'],['Glauber','M'],['Lucas','M'],['Mateus','M'],['Gabriel','M'],['Rafael','M'],['João','M'],['Pedro','M'],['Tiago','M'],['Marcos','M'],['André','M'],['Felipe','M'],['Carlos','M'],['Eduardo','M'],['Marcelo','M'],['Gustavo','M'],['Fernando','M'],['Bruno','M'],['Diego','M'],['Leonardo','M'],['Thiago','M'],['Rodrigo','M'],['Ana','F'],['Julia','F'],['Beatriz','F'],['Mariana','F'],['Camila','F'],['Letícia','F'],['Amanda','F']];
-function mapPlayer(r){return{id:+r.id,name:r.nome,sex:r.sexo,confirmed:!!r.confirmado,matches:+(r.partidas||0),wins:+(r.vitorias||0),waitCount:+(r.espera||0),queueOrder:+(r.queue_order||r.id)}}
+function mapPlayer(r){
+    const status=r.status||(r.confirmado?'confirmado':'ausente');
+    return{id:+r.id,name:r.nome,sex:r.sexo,status,confirmed:status==='confirmado',matches:+(r.partidas||0),wins:+(r.vitorias||0),waitCount:+(r.espera||0),queueOrder:+(r.queue_order||r.id)}
+}
 function statePayload(){return{id:1,iniciado:gameStarted,vitorias_time_a:teamAWins,vitorias_time_b:teamBWins,time_a:teamA.map(p=>p.id),time_b:teamB.map(p=>p.id),fila:queue.map(p=>p.id)}}
-async function loadState(){if(loading)return;loading=true;try{const [pr,sr]=await Promise.all([db.from('jogadores').select('id,nome,sexo,confirmado,partidas,vitorias,espera,queue_order').order('queue_order'),db.from('estado_jogo').select('*').eq('id',1).maybeSingle()]);if(pr.error)throw pr.error;if(sr.error)throw sr.error;players=(pr.data||[]).map(mapPlayer);nextQueueOrder=players.reduce((m,p)=>Math.max(m,p.queueOrder),0)+1;const s=sr.data;const byId=new Map(players.map(p=>[p.id,p]));if(s){gameStarted=!!s.iniciado;teamAWins=+(s.vitorias_time_a||0);teamBWins=+(s.vitorias_time_b||0);teamA=(s.time_a||[]).map(id=>byId.get(+id)).filter(Boolean);teamB=(s.time_b||[]).map(id=>byId.get(+id)).filter(Boolean);queue=(s.fila||[]).map(id=>byId.get(+id)).filter(Boolean)}else{gameStarted=false;teamAWins=teamBWins=0;teamA=[];teamB=[];queue=[]}render()}catch(e){console.error(e);alert('Não foi possível carregar os dados do Supabase.')}finally{loading=false}}
-async function persistPlayers(){const rows=players.map(p=>({id:p.id,nome:p.name,sexo:p.sex,confirmado:p.confirmed,partidas:p.matches,vitorias:p.wins,espera:p.waitCount,queue_order:p.queueOrder}));const {error}=await db.from('jogadores').upsert(rows,{onConflict:'id'});if(error)throw error}
+async function loadState(){if(loading)return;loading=true;try{const [pr,sr]=await Promise.all([db.from('jogadores').select('id,nome,sexo,status,confirmado,partidas,vitorias,espera,queue_order').order('queue_order'),db.from('estado_jogo').select('*').eq('id',1).maybeSingle()]);if(pr.error)throw pr.error;if(sr.error)throw sr.error;players=(pr.data||[]).map(mapPlayer);nextQueueOrder=players.reduce((m,p)=>Math.max(m,p.queueOrder),0)+1;const s=sr.data;const byId=new Map(players.map(p=>[p.id,p]));if(s){gameStarted=!!s.iniciado;teamAWins=+(s.vitorias_time_a||0);teamBWins=+(s.vitorias_time_b||0);teamA=(s.time_a||[]).map(id=>byId.get(+id)).filter(Boolean);teamB=(s.time_b||[]).map(id=>byId.get(+id)).filter(Boolean);queue=(s.fila||[]).map(id=>byId.get(+id)).filter(Boolean)}else{gameStarted=false;teamAWins=teamBWins=0;teamA=[];teamB=[];queue=[]}render()}catch(e){console.error(e);alert('Não foi possível carregar os dados do Supabase.')}finally{loading=false}}
+async function persistPlayers(){const rows=players.map(p=>({id:p.id,nome:p.name,sexo:p.sex,status:p.status,confirmado:p.status==='confirmado',partidas:p.matches,vitorias:p.wins,espera:p.waitCount,queue_order:p.queueOrder}));const {error}=await db.from('jogadores').upsert(rows,{onConflict:'id'});if(error)throw error}
 async function persistState(){const {error}=await db.from('estado_jogo').upsert(statePayload(),{onConflict:'id'});if(error)throw error}
 function syncWaitCounts(){const counts=new Map();queue.forEach(p=>counts.set(p.id,p.waitCount));teamA.forEach(p=>counts.set(p.id,p.waitCount));teamB.forEach(p=>counts.set(p.id,p.waitCount));players.forEach(p=>{if(counts.has(p.id))p.waitCount=counts.get(p.id);else p.waitCount=0})}
 async function persistAll(){syncWaitCounts();await Promise.all([persistPlayers(),persistState()])}
@@ -206,21 +217,21 @@ function render() {
             // Lista Convocados
             const listEl = document.getElementById('players-list');
             listEl.innerHTML = '';
-            const confirmed = players.filter(p => p.confirmed);
-            document.getElementById('confirmed-count').innerText = `${confirmed.length} Confirmados`;
+            const confirmed = players.filter(p => p.status === 'confirmado');
+            document.getElementById('confirmed-count').innerText = `${confirmed.length}/30 Confirmados`;
 
             players.forEach((p, idx) => {
                 const li = document.createElement('li');
+                const statusClass = p.status === 'confirmado' ? 'status-confirmado' : p.status === 'ausente' ? 'status-ausente' : 'status-pendente';
+                const statusLabel = p.status === 'confirmado' ? 'Confirmado' : p.status === 'ausente' ? 'Ausente' : 'Pendente';
+                const statusIcon = p.status === 'confirmado' ? '✓' : p.status === 'ausente' ? '✕' : '?';
                 li.innerHTML = `
                     <div style="display:flex; align-items:center; min-width:0;">
-                        <button class="check-btn" style="background:${p.confirmed ? '#16a34a' : '#d1d5db'}; cursor:${isAdmin ? 'pointer' : 'default'};" ${isAdmin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>
-                            ${p.confirmed ? '✓' : '✕'}
-                        </button>
+                        <button class="status-btn ${statusClass}" title="${isAdmin ? 'Clique para alterar o status' : statusLabel}" ${isAdmin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>${statusIcon}</button>
                         <span style="width:28px; color:#6b7280; font-size:13px; font-weight:bold; flex-shrink:0;">${idx + 1}.</span>
-                        <span style="font-size:15px; font-weight:600; color:${p.confirmed ? '#1f2937' : '#9ca3af'}; text-decoration:${p.confirmed ? 'none' : 'line-through'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${p.name}
-                        </span>
+                        <span style="font-size:15px; font-weight:600; color:${p.status === 'confirmado' ? '#1f2937' : '#9ca3af'}; text-decoration:${p.status === 'ausente' ? 'line-through' : 'none'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.name}</span>
                         <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span>
+                        <span class="status-label ${p.status}">${statusLabel}</span>
                     </div>
                     ${isAdmin ? `<button class="btn-del" onclick="removePlayer(${p.id})">🗑️</button>` : ''}
                 `;
@@ -332,10 +343,63 @@ function render() {
 function openLoginModal(){document.getElementById('login-modal').style.display='flex'}function closeLoginModal(){document.getElementById('login-modal').style.display='none';document.getElementById('admin-email').value='';document.getElementById('admin-pass').value=''}
 async function loginAdmin(){const email=document.getElementById('admin-email').value.trim(),pass=document.getElementById('admin-pass').value;if(!email||!pass){alert('Informe o e-mail e a senha.');return}const {data,error}=await db.auth.signInWithPassword({email,password:pass});if(error){alert('E-mail ou senha incorretos.');console.error(error);return}currentAdmin=data.user.email;closeLoginModal();render()}
 async function logoutAdmin(){await db.auth.signOut();currentAdmin=null;render()}
-async function addPlayer(){if(!currentAdmin)return;if(players.length>=30){alert('A lista atingiu o limite máximo de 30 pessoas.');return}const input=document.getElementById('player-name'),sex=document.getElementById('player-sex').value,name=input.value.trim();if(!name)return;const p={id:Date.now(),name,sex,confirmed:true,matches:0,wins:0,waitCount:0,queueOrder:nextQueueOrder++};players.push(p);if(gameStarted)queue.push(p);try{await persistAll();input.value='';render()}catch(e){players=players.filter(x=>x.id!==p.id);queue=queue.filter(x=>x.id!==p.id);alert('Não foi possível salvar o jogador.');console.error(e)}}
-async function togglePresence(id){if(!currentAdmin)return;const p=players.find(x=>x.id===id);if(!p)return;p.confirmed=!p.confirmed;try{await persistPlayers();render()}catch(e){p.confirmed=!p.confirmed;alert('Não foi possível salvar a alteração.');console.error(e)}}
+async function addPlayer(){
+    if(!currentAdmin)return;
+    if(players.length>=40){alert('A lista atingiu o limite máximo de 40 pessoas.');return}
+    const input=document.getElementById('player-name'),sex=document.getElementById('player-sex').value,name=input.value.trim();
+    if(!name)return;
+    const p={id:Date.now(),name,sex,status:'pendente',confirmed:false,matches:0,wins:0,waitCount:0,queueOrder:nextQueueOrder++};
+    players.push(p);
+    try{await persistAll();input.value='';render()}catch(e){players=players.filter(x=>x.id!==p.id);alert('Não foi possível salvar o jogador.');console.error(e)}
+}
+async function togglePresence(id){
+    if(!currentAdmin)return;
+    const p=players.find(x=>x.id===id);
+    if(!p)return;
+    const next={confirmado:'ausente',ausente:'pendente',pendente:'confirmado'}[p.status]||'pendente';
+    if(next==='confirmado' && players.filter(x=>x.status==='confirmado').length>=30){alert('Já existem 30 jogadores confirmados. Para confirmar este jogador, primeiro marque outro como ausente ou pendente.');return}
+    const oldStatus=p.status;
+    const wasInA=teamA.some(x=>x.id===p.id);
+    const wasInB=teamB.some(x=>x.id===p.id);
+    const wasInQueue=queue.some(x=>x.id===p.id);
+    p.status=next;p.confirmed=next==='confirmado';
+
+    // Ausente/Pendente nunca podem permanecer na quadra ou na fila.
+    if(!p.confirmed){
+        queue=queue.filter(x=>x.id!==p.id);
+        teamA=teamA.filter(x=>x.id!==p.id);
+        teamB=teamB.filter(x=>x.id!==p.id);
+    }
+
+    // Se alguém chegar depois e for confirmado durante o jogo, entra no fim da fila.
+    if(p.confirmed && !wasInA && !wasInB && !wasInQueue && gameStarted){
+        p.waitCount=0;
+        queue.push(p);
+    }
+
+    // Se alguém saiu da quadra por ficar ausente/pendente, recompõe as vagas
+    // usando somente confirmados e mantendo a regra de mulheres + ordem da fila.
+    if(gameStarted && !p.confirmed && (wasInA || wasInB)){
+        const requiredWomen=requiredWomenPerTeam(players.filter(x=>x.status==='confirmado'));
+        const candidates=queue.filter(x=>x.status==='confirmado');
+        const composed=composeTeams(candidates,teamA,teamB,requiredWomen);
+        teamA=composed.A;
+        teamB=composed.B;
+        queue=composed.remaining;
+        teamA.forEach(x=>x.waitCount=0);
+        teamB.forEach(x=>x.waitCount=0);
+    }
+
+    try{
+        await persistAll();
+        render();
+    }catch(e){
+        p.status=oldStatus;p.confirmed=oldStatus==='confirmado';
+        alert('Não foi possível salvar a alteração.');console.error(e);
+    }
+}
 async function removePlayer(id){if(!currentAdmin||!confirm('Remover este jogador?'))return;const old=[players,teamA,teamB,queue].map(x=>[...x]);players=players.filter(p=>p.id!==id);queue=queue.filter(p=>p.id!==id);if(teamA.some(p=>p.id===id)){teamA=teamA.filter(p=>p.id!==id);if(queue.length)teamA.push({...queue.shift(),waitCount:0})}if(teamB.some(p=>p.id===id)){teamB=teamB.filter(p=>p.id!==id);if(queue.length)teamB.push({...queue.shift(),waitCount:0})}try{const {error}=await db.from('jogadores').delete().eq('id',id);if(error)throw error;await persistAll();render()}catch(e){[players,teamA,teamB,queue]=old;alert('Não foi possível remover o jogador.');console.error(e)}}
-function requiredWomenPerTeam(c=players.filter(p=>p.confirmed)){const w=c.filter(p=>p.sex==='F').length;return c.length>0&&w/c.length>=0.5?2:1}
+function requiredWomenPerTeam(c=players.filter(p=>p.status==='confirmado')){const w=c.filter(p=>p.sex==='F').length;return c.length>0&&w/c.length>=0.5?2:1}
 // A ordem da fila exibida na tela é a prioridade real de entrada.
 // A regra de sexo vem primeiro; dentro dela, respeitamos exatamente a ordem da fila.
 function takeBestWoman(pool){const idx=pool.findIndex(p=>p.sex==='F');if(idx===-1)return null;return pool.splice(idx,1)[0]}
@@ -360,8 +424,8 @@ function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
     while(B.length<4&&available.length)B.push(available.shift());
     return{A,B,remaining:available};
 }
-async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.confirmed).map(p=>({...p,waitCount:0}));if(confirmed.length<8){alert('É necessário pelo menos 8 confirmados para iniciar!');return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
-async function handleWin(winner){if(!currentAdmin||!gameStarted)return;teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});queue.forEach(p=>p.waitCount++);let leaving=[];if(winner==='A'){teamAWins++;teamBWins=0;if(teamAWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamAWins=0}else{leaving=[...teamB];teamB=[]}}else{teamBWins++;teamAWins=0;if(teamBWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamBWins=0}else{leaving=[...teamA];teamA=[]}}leaving.forEach(p=>p.waitCount=0);const neededA=4-teamA.length,neededB=4-teamB.length,totalNeeded=neededA+neededB;let available=[...queue];const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.confirmed));const candidatePool=[...available,...leaving];const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);try{await persistAll();render()}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}}
+async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<8){alert('É necessário pelo menos 8 confirmados para iniciar!');return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
+async function handleWin(winner){if(!currentAdmin||!gameStarted)return;teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});queue.forEach(p=>p.waitCount++);let leaving=[];if(winner==='A'){teamAWins++;teamBWins=0;if(teamAWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamAWins=0}else{leaving=[...teamB];teamB=[]}}else{teamBWins++;teamAWins=0;if(teamBWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamBWins=0}else{leaving=[...teamA];teamA=[]}}leaving.forEach(p=>p.waitCount=0);const neededA=4-teamA.length,neededB=4-teamB.length,totalNeeded=neededA+neededB;let available=[...queue];const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));const candidatePool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);try{await persistAll();render()}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}}
 async function moveQueue(idx,dir){if(!currentAdmin)return;const target=idx+dir;if(target<0||target>=queue.length)return;[queue[idx],queue[target]]=[queue[target],queue[idx]];try{await persistState();render()}catch(e){[queue[idx],queue[target]]=[queue[target],queue[idx]];alert('Não foi possível salvar a ordem da fila.');console.error(e)}}
 async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha?'))return;players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;try{await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
 async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState()}
