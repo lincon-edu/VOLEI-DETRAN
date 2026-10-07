@@ -159,8 +159,8 @@
     <div class="modal" id="login-modal">
         <div class="modal-body">
             <h3>Acesso Administrativo</h3>
-            <input type="email" id="admin-email" placeholder="E-mail do Supabase" autocomplete="username">
-            <input type="password" id="admin-pass" placeholder="Senha do Supabase" autocomplete="current-password">
+            <input type="text" id="admin-email" placeholder="E-mail">
+            <input type="password" id="admin-pass" placeholder="Senha">
             <div class="modal-actions">
                 <button onclick="closeLoginModal()" style="padding:8px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer;">Cancelar</button>
                 <button onclick="loginAdmin()" style="padding:8px 14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
@@ -169,207 +169,27 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        const SUPABASE_URL = 'https://oxacdamrkrokzocamvfw.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_uusWwV0ef8ux-Dr__IFlPA_WGwQpAqO';
-        const { createClient } = supabase;
-        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+<script>
 
-        // Autenticação exclusivamente pelo Supabase Auth.
-        // Não existem mais usuários/senhas administrativos gravados neste HTML.
-        let currentAdmin = null;
-        let supabaseSession = null;
-        let currentTab = 'lista';
-        let gameStarted = false;
-        let teamAWins = 0;
-        let teamBWins = 0;
-        let syncing = false;
-
-        const jogadoresIniciais = [
-            ["Victor","M"], ["Joao V","M"], ["Glauber","M"], ["Lucas","M"], ["Mateus","M"], ["Gabriel","M"],
-            ["Rafael","M"], ["João","M"], ["Pedro","M"], ["Tiago","M"], ["Marcos","M"], ["André","M"],
-            ["Felipe","M"], ["Carlos","M"], ["Eduardo","M"], ["Marcelo","M"], ["Gustavo","M"], ["Fernando","M"],
-            ["Bruno","M"], ["Diego","M"], ["Leonardo","M"], ["Thiago","M"], ["Rodrigo","M"],
-            ["Ana","F"], ["Julia","F"], ["Beatriz","F"], ["Mariana","F"], ["Camila","F"], ["Letícia","F"], ["Amanda","F"]
-        ];
-
-        let players = [];
-        let teamA = [];
-        let teamB = [];
-        let queue = [];
-        let nextQueueOrder = 1;
-
-        function mapPlayer(row) {
-            return {
-                id: Number(row.id),
-                name: row.nome,
-                sex: row.sexo,
-                confirmed: !!row.confirmado,
-                matches: Number(row.partidas || 0),
-                wins: Number(row.vitorias || 0),
-                waitCount: Number(row.espera || 0),
-                queueOrder: Number(row.queue_order || row.id)
-            };
-        }
-
-        function playerPayload(p) {
-            return {
-                nome: p.name,
-                sexo: p.sex,
-                confirmado: p.confirmed,
-                partidas: p.matches,
-                vitorias: p.wins,
-                espera: p.waitCount
-            };
-        }
-
-        async function loadState() {
-            syncing = true;
-
-            const [{ data: playerRows, error: pErr },
-                   { data: stateRows, error: sErr },
-                   { data: placementRows, error: jErr }] = await Promise.all([
-                db.from('jogadores').select('*').order('id', { ascending: true }),
-                db.from('estado_jogo').select('*').eq('id', 1).maybeSingle(),
-                db.from('jogo_jogadores').select('*').order('posicao', { ascending: true })
-            ]);
-
-            if (pErr) console.error('Erro carregando jogadores:', pErr);
-            if (sErr) console.error('Erro carregando estado:', sErr);
-            if (jErr) console.error('Erro carregando posições:', jErr);
-
-            if (playerRows && playerRows.length) {
-                players = playerRows.map(mapPlayer);
-
-                const placements = placementRows || [];
-                const byId = new Map(players.map(p => [p.id, p]));
-                teamA = placements
-                    .filter(x => x.localizacao === 'TIME_A')
-                    .sort((a,b) => a.posicao-b.posicao)
-                    .map(x => byId.get(Number(x.jogador_id)))
-                    .filter(Boolean);
-                teamB = placements
-                    .filter(x => x.localizacao === 'TIME_B')
-                    .sort((a,b) => a.posicao-b.posicao)
-                    .map(x => byId.get(Number(x.jogador_id)))
-                    .filter(Boolean);
-                queue = placements
-                    .filter(x => x.localizacao === 'FILA')
-                    .sort((a,b) => a.posicao-b.posicao)
-                    .map(x => byId.get(Number(x.jogador_id)))
-                    .filter(Boolean);
-
-                // Jogadores ainda não posicionados ficam na fila, sem alterar a ordem existente.
-                const placed = new Set([...teamA, ...teamB, ...queue].map(p => p.id));
-                players.filter(p => !placed.has(p.id)).forEach(p => queue.push(p));
-
-                nextQueueOrder = Math.max(0, ...players.map(p => p.queueOrder || p.id)) + 1;
-            }
-
-            if (stateRows) {
-                gameStarted = !!stateRows.iniciado;
-                teamAWins = Number(stateRows.vitorias_time_a || 0);
-                teamBWins = Number(stateRows.vitorias_time_b || 0);
-            }
-
-            syncing = false;
-            render();
-        }
-
-        async function persistPlayers() {
-            if (syncing || !players.length) return;
-            for (const p of players) {
-                const { error } = await db
-                    .from('jogadores')
-                    .update(playerPayload(p))
-                    .eq('id', p.id);
-                if (error) console.error('Erro salvando jogador', p.id, error);
-            }
-        }
-
-        async function persistState() {
-            const { error } = await db
-                .from('estado_jogo')
-                .upsert({
-                    id: 1,
-                    iniciado: gameStarted,
-                    vitorias_time_a: teamAWins,
-                    vitorias_time_b: teamBWins
-                }, { onConflict: 'id' });
-            if (error) console.error('Erro salvando estado do jogo:', error);
-        }
-
-        async function persistPlacements() {
-            const rows = [];
-
-            teamA.forEach((p, i) => rows.push({
-                jogador_id: p.id,
-                localizacao: 'TIME_A',
-                posicao: i + 1
-            }));
-            teamB.forEach((p, i) => rows.push({
-                jogador_id: p.id,
-                localizacao: 'TIME_B',
-                posicao: i + 1
-            }));
-            queue.forEach((p, i) => rows.push({
-                jogador_id: p.id,
-                localizacao: 'FILA',
-                posicao: i + 1
-            }));
-
-            const { error: delError } = await db
-                .from('jogo_jogadores')
-                .delete()
-                .neq('jogador_id', 0);
-
-            if (delError) {
-                console.error('Erro limpando posições:', delError);
-                return;
-            }
-
-            if (rows.length) {
-                const { error } = await db
-                    .from('jogo_jogadores')
-                    .insert(rows);
-                if (error) console.error('Erro salvando posições:', error);
-            }
-        }
-
-        async function persistAll() {
-            await persistPlayers();
-            await persistState();
-            await persistPlacements();
-        }
-
-        async function insertPlayer(p) {
-            const { data, error } = await db
-                .from('jogadores')
-                .insert(playerPayload(p))
-                .select()
-                .single();
-
-            if (error) {
-                console.error('Erro inserindo jogador:', error);
-                alert('Não foi possível salvar o jogador no Supabase. Verifique as políticas RLS.');
-                return null;
-            }
-            return mapPlayer(data);
-        }
-
-        async function deletePlayerFromDb(id) {
-            const { error } = await db.from('jogadores').delete().eq('id', id);
-            if (error) {
-                console.error('Erro removendo jogador:', error);
-                alert('Não foi possível remover o jogador do Supabase.');
-                return false;
-            }
-            return true;
-        }
-
-        function render() {
+const SUPABASE_URL='https://oxacdamrkrokzocamvfw.supabase.co';
+const SUPABASE_KEY='sb_publishable_uusWwV0ef8ux-Dr__IFlPA_WGwQpAqO';
+const {createClient}=supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentAdmin=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0;
+let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false;
+const jogadoresIniciais=[['Victor','M'],['Joao V','M'],['Glauber','M'],['Lucas','M'],['Mateus','M'],['Gabriel','M'],['Rafael','M'],['João','M'],['Pedro','M'],['Tiago','M'],['Marcos','M'],['André','M'],['Felipe','M'],['Carlos','M'],['Eduardo','M'],['Marcelo','M'],['Gustavo','M'],['Fernando','M'],['Bruno','M'],['Diego','M'],['Leonardo','M'],['Thiago','M'],['Rodrigo','M'],['Ana','F'],['Julia','F'],['Beatriz','F'],['Mariana','F'],['Camila','F'],['Letícia','F'],['Amanda','F']];
+function mapPlayer(r){return{id:+r.id,name:r.nome,sex:r.sexo,confirmed:!!r.confirmado,matches:+(r.partidas||0),wins:+(r.vitorias||0),waitCount:+(r.espera||0),queueOrder:+(r.queue_order||r.id)}}
+function statePayload(){return{id:1,iniciado:gameStarted,vitorias_time_a:teamAWins,vitorias_time_b:teamBWins,time_a:teamA.map(p=>p.id),time_b:teamB.map(p=>p.id),fila:queue.map(p=>p.id)}}
+async function loadState(){if(loading)return;loading=true;try{const [pr,sr]=await Promise.all([db.from('jogadores').select('id,nome,sexo,confirmado,partidas,vitorias,espera,queue_order').order('queue_order'),db.from('estado_jogo').select('*').eq('id',1).maybeSingle()]);if(pr.error)throw pr.error;if(sr.error)throw sr.error;players=(pr.data||[]).map(mapPlayer);nextQueueOrder=players.reduce((m,p)=>Math.max(m,p.queueOrder),0)+1;const s=sr.data;const byId=new Map(players.map(p=>[p.id,p]));if(s){gameStarted=!!s.iniciado;teamAWins=+(s.vitorias_time_a||0);teamBWins=+(s.vitorias_time_b||0);teamA=(s.time_a||[]).map(id=>byId.get(+id)).filter(Boolean);teamB=(s.time_b||[]).map(id=>byId.get(+id)).filter(Boolean);queue=(s.fila||[]).map(id=>byId.get(+id)).filter(Boolean)}else{gameStarted=false;teamAWins=teamBWins=0;teamA=[];teamB=[];queue=[]}render()}catch(e){console.error(e);alert('Não foi possível carregar os dados do Supabase.')}finally{loading=false}}
+async function persistPlayers(){const rows=players.map(p=>({id:p.id,nome:p.name,sexo:p.sex,confirmado:p.confirmed,partidas:p.matches,vitorias:p.wins,espera:p.waitCount,queue_order:p.queueOrder}));const {error}=await db.from('jogadores').upsert(rows,{onConflict:'id'});if(error)throw error}
+async function persistState(){const {error}=await db.from('estado_jogo').upsert(statePayload(),{onConflict:'id'});if(error)throw error}
+function syncWaitCounts(){const counts=new Map();queue.forEach(p=>counts.set(p.id,p.waitCount));teamA.forEach(p=>counts.set(p.id,p.waitCount));teamB.forEach(p=>counts.set(p.id,p.waitCount));players.forEach(p=>{if(counts.has(p.id))p.waitCount=counts.get(p.id);else p.waitCount=0})}
+async function persistAll(){syncWaitCounts();await Promise.all([persistPlayers(),persistState()])}
+function setupRealtime(){db.channel('volei-detran-sync').on('postgres_changes',{event:'*',schema:'public',table:'jogadores'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'estado_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).subscribe()}
+function render() {
             const isAdmin = currentAdmin !== null;
 
+            // Header ADM
             const btnLogin = document.getElementById('btn-login');
             if (isAdmin) {
                 btnLogin.innerText = `Sair (${currentAdmin})`;
@@ -383,6 +203,7 @@
 
             document.getElementById('admin-add-section').style.display = isAdmin ? 'flex' : 'none';
 
+            // Lista Convocados
             const listEl = document.getElementById('players-list');
             listEl.innerHTML = '';
             const confirmed = players.filter(p => p.confirmed);
@@ -406,13 +227,16 @@
                 listEl.appendChild(li);
             });
 
-            document.getElementById('total-female').innerText = players.filter(p => p.sex === 'F').length;
-            document.getElementById('total-male').innerText = players.filter(p => p.sex === 'M').length;
+            const totalFemale = players.filter(p => p.sex === 'F').length;
+            const totalMale = players.filter(p => p.sex === 'M').length;
+            document.getElementById('total-female').innerText = totalFemale;
+            document.getElementById('total-male').innerText = totalMale;
             document.getElementById('total-players').innerText = players.length;
 
             document.getElementById('btn-reset').style.display = (gameStarted && isAdmin) ? 'block' : 'none';
             document.getElementById('btn-start').style.display = (!gameStarted && isAdmin) ? 'block' : 'none';
 
+            // Quadra
             document.getElementById('wins-a').innerText = `${teamAWins} 🏆`;
             document.getElementById('wins-b').innerText = `${teamBWins} 🏆`;
 
@@ -431,6 +255,7 @@
             document.getElementById('btn-win-a').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('btn-win-b').style.display = isAdmin ? 'block' : 'none';
 
+            // Fila de Espera
             const queueEl = document.getElementById('queue-list');
             queueEl.innerHTML = '';
             document.getElementById('queue-count').innerText = `${queue.length} pessoas`;
@@ -459,6 +284,7 @@
                 });
             }
 
+            // Resenha / Ranking
             const resenhaEl = document.getElementById('resenha-list');
             resenhaEl.innerHTML = '';
             const ranked = [...players].sort((a, b) => b.wins - a.wins || b.matches - a.matches);
@@ -489,404 +315,37 @@
             });
         }
 
+        // Navegação de Abas
         function switchTab(tab) {
             currentTab = tab;
             document.getElementById('tab-lista').style.display = tab === 'lista' ? 'block' : 'none';
             document.getElementById('tab-quadra').style.display = tab === 'quadra' ? 'block' : 'none';
             document.getElementById('tab-resenha').style.display = tab === 'resenha' ? 'block' : 'none';
+
             document.getElementById('btn-tab-lista').className = 'tab-btn' + (tab === 'lista' ? ' active' : '');
             document.getElementById('btn-tab-quadra').className = 'tab-btn' + (tab === 'quadra' ? ' active' : '');
             document.getElementById('btn-tab-resenha').className = 'tab-btn' + (tab === 'resenha' ? ' active' : '');
         }
 
-        function openLoginModal() { document.getElementById('login-modal').style.display = 'flex'; }
-        function closeLoginModal() {
-            document.getElementById('login-modal').style.display = 'none';
-            document.getElementById('admin-email').value = '';
-            document.getElementById('admin-pass').value = '';
-        }
-
-        async function loginAdmin() {
-            const email = document.getElementById('admin-email').value.trim();
-            const pass = document.getElementById('admin-pass').value;
-
-            if (!email || !pass) {
-                alert('Informe o e-mail e a senha do Supabase.');
-                return;
-            }
-
-            const { data, error } = await db.auth.signInWithPassword({
-                email,
-                password: pass
-            });
-
-            if (error) {
-                console.error('Erro no login Supabase:', error);
-                alert('E-mail ou senha inválidos.');
-                return;
-            }
-
-            supabaseSession = data.session;
-            currentAdmin = data.user?.email || email;
-            closeLoginModal();
-            render();
-        }
-
-        async function logoutAdmin() {
-            await db.auth.signOut();
-            supabaseSession = null;
-            currentAdmin = null;
-            render();
-        }
-
-        async function initSupabaseAuth() {
-            const { data, error } = await db.auth.getSession();
-            if (error) console.error('Erro recuperando sessão Supabase:', error);
-
-            supabaseSession = data?.session || null;
-            currentAdmin = supabaseSession?.user?.email || null;
-            render();
-
-            db.auth.onAuthStateChange((event, session) => {
-                supabaseSession = session;
-                currentAdmin = session?.user?.email || null;
-                render();
-            });
-        }
-
-        function requiredWomenPerTeam(confirmedPlayers = players.filter(p => p.confirmed)) {
-            const women = confirmedPlayers.filter(p => p.sex === 'F').length;
-            return confirmedPlayers.length > 0 && women / confirmedPlayers.length >= 0.5 ? 2 : 1;
-        }
-
-        function waitingPriority(a, b) {
-            return b.waitCount - a.waitCount || a.queueOrder - b.queueOrder;
-        }
-
-        function takeBestWoman(pool) {
-            const candidates = pool.filter(p => p.sex === 'F').sort(waitingPriority);
-            if (!candidates.length) return null;
-            const chosen = candidates[0];
-            pool.splice(pool.findIndex(p => p.id === chosen.id), 1);
-            return chosen;
-        }
-
-        function composeTeams(pool, keepA = [], keepB = [], requiredWomen = 1) {
-            const available = [...pool].sort(waitingPriority);
-            const A = [...keepA], B = [...keepB];
-
-            const fillRequiredWomen = team => {
-                let missing = Math.max(0, requiredWomen - team.filter(p => p.sex === 'F').length);
-                while (missing > 0 && team.length < 4) {
-                    const woman = takeBestWoman(available);
-                    if (!woman) break;
-                    team.push(woman);
-                    missing--;
-                }
-            };
-
-            fillRequiredWomen(A);
-            fillRequiredWomen(B);
-
-            while (A.length < 4 && available.length) A.push(available.shift());
-            while (B.length < 4 && available.length) B.push(available.shift());
-
-            return { A, B, remaining: available };
-        }
-
-        async function addPlayer() {
-            if (!currentAdmin) return;
-
-            if (players.length >= 30) {
-                alert("A lista atingiu o limite máximo de 30 pessoas.");
-                return;
-            }
-
-            const input = document.getElementById('player-name');
-            const sexInput = document.getElementById('player-sex');
-            const name = input.value.trim();
-            const sex = sexInput.value;
-
-            if (!name) return;
-
-            const tempPlayer = {
-                name, sex, confirmed: true, matches: 0, wins: 0, waitCount: 0,
-                queueOrder: nextQueueOrder++
-            };
-
-            const saved = await insertPlayer(tempPlayer);
-            if (!saved) return;
-
-            saved.queueOrder = tempPlayer.queueOrder;
-            players.push(saved);
-
-            if (gameStarted) {
-                queue.push(saved);
-                await persistPlacements();
-            }
-
-            input.value = '';
-            render();
-        }
-
-        async function togglePresence(id) {
-            if (!currentAdmin) return;
-            const p = players.find(p => p.id === id);
-            if (!p) return;
-
-            p.confirmed = !p.confirmed;
-            const { error } = await db.from('jogadores')
-                .update({ confirmado: p.confirmed })
-                .eq('id', p.id);
-
-            if (error) {
-                p.confirmed = !p.confirmed;
-                console.error(error);
-                alert('Não foi possível atualizar a confirmação.');
-                return;
-            }
-
-            render();
-        }
-
-        async function removePlayer(id) {
-            if (!currentAdmin) return;
-            if (!confirm("Remover este jogador?")) return;
-
-            const removed = players.find(p => p.id === id);
-            if (!removed) return;
-
-            const ok = await deletePlayerFromDb(id);
-            if (!ok) return;
-
-            players = players.filter(p => p.id !== id);
-            queue = queue.filter(p => p.id !== id);
-            teamA = teamA.filter(p => p.id !== id);
-            teamB = teamB.filter(p => p.id !== id);
-
-            // Se alguém sair da quadra durante o jogo, recompõe as vagas sem quebrar o estado.
-            if (gameStarted) {
-                const requiredWomen = requiredWomenPerTeam(players.filter(p => p.confirmed));
-                const composed = composeTeams(queue, teamA, teamB, requiredWomen);
-                teamA = composed.A;
-                teamB = composed.B;
-                queue = composed.remaining;
-            }
-
-            await persistPlacements();
-            render();
-        }
-
-        async function startGame() {
-            if (!currentAdmin) return;
-
-            const confirmed = players.filter(p => p.confirmed).map(p => ({ ...p, waitCount: 0 }));
-
-            if (confirmed.length < 8) {
-                alert("É necessário pelo menos 8 confirmados para iniciar!");
-                return;
-            }
-
-            const requiredWomen = requiredWomenPerTeam(confirmed);
-            const womenCount = confirmed.filter(p => p.sex === 'F').length;
-
-            if (womenCount < requiredWomen * 2) {
-                alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);
-                return;
-            }
-
-            const composed = composeTeams(confirmed, [], [], requiredWomen);
-            if (composed.A.length !== 4 || composed.B.length !== 4) {
-                alert('Não foi possível montar dois times completos.');
-                return;
-            }
-
-            teamA = composed.A;
-            teamB = composed.B;
-            queue = composed.remaining;
-
-            teamAWins = 0;
-            teamBWins = 0;
-            gameStarted = true;
-
-            await persistAll();
-            render();
-            switchTab('quadra');
-        }
-
-        async function handleWin(winner) {
-            if (!currentAdmin || !gameStarted) return;
-
-            // Contabilizar partidas e vitórias
-            teamA.forEach(p => {
-                p.matches++;
-                if (winner === 'A') p.wins++;
-                const mainP = players.find(x => x.id === p.id);
-                if (mainP) { mainP.matches = p.matches; mainP.wins = p.wins; }
-            });
-
-            teamB.forEach(p => {
-                p.matches++;
-                if (winner === 'B') p.wins++;
-                const mainP = players.find(x => x.id === p.id);
-                if (mainP) { mainP.matches = p.matches; mainP.wins = p.wins; }
-            });
-
-            queue.forEach(p => p.waitCount++);
-
-            let leaving = [];
-
-            // IMPORTANTE: esta parte é a regra ORIGINAL do arquivo enviado.
-            // Uma equipe que vence duas vezes seguidas faz com que OS DOIS TIMES
-            // deixem a quadra. Não alteramos essa regra.
-            if (winner === 'A') {
-                teamAWins++;
-                teamBWins = 0;
-
-                if (teamAWins === 2) {
-                    leaving = [...teamA, ...teamB];
-                    teamA = [];
-                    teamB = [];
-                    teamAWins = 0;
-                } else {
-                    leaving = [...teamB];
-                    teamB = [];
-                }
-            } else {
-                teamBWins++;
-                teamAWins = 0;
-
-                if (teamBWins === 2) {
-                    leaving = [...teamA, ...teamB];
-                    teamA = [];
-                    teamB = [];
-                    teamBWins = 0;
-                } else {
-                    leaving = [...teamA];
-                    teamA = [];
-                }
-            }
-
-            leaving.forEach(p => p.waitCount = 0);
-
-            const neededA = 4 - teamA.length;
-            const neededB = 4 - teamB.length;
-            const totalNeeded = neededA + neededB;
-
-            const priorityQueue = queue.filter(p => p.waitCount >= 2);
-            const normalQueue = queue.filter(p => p.waitCount < 2);
-            let available = [...priorityQueue, ...normalQueue];
-            let entering = [];
-
-            if (available.length >= totalNeeded) {
-                entering = available.splice(0, totalNeeded);
-                queue = [...available, ...leaving];
-            } else {
-                entering = [...available];
-                queue = [];
-                const missing = totalNeeded - entering.length;
-
-                leaving.sort((a, b) => a.matches - b.matches);
-                entering = [...entering, ...leaving.splice(0, missing)];
-                queue = [...leaving];
-            }
-
-            entering.forEach(p => {
-                p.waitCount = 0;
-                if (teamA.length < 4) teamA.push(p);
-                else teamB.push(p);
-            });
-
-            await persistAll();
-            render();
-        }
-
-        async function moveQueue(idx, dir) {
-            if (!currentAdmin) return;
-
-            const target = idx + dir;
-            if (target < 0 || target >= queue.length) return;
-
-            const temp = queue[idx];
-            queue[idx] = queue[target];
-            queue[target] = temp;
-
-            await persistPlacements();
-            render();
-        }
-
-        async function resetGame() {
-            if (!currentAdmin) return;
-
-            if (confirm("Encerrar o jogo e voltar para a lista?")) {
-                gameStarted = false;
-                teamA = [];
-                teamB = [];
-                queue = [];
-
-                teamAWins = 0;
-                teamBWins = 0;
-
-                // Reinício completo da partida: zera também o histórico da Resenha.
-                // Como derrotas são calculadas por (partidas - vitórias), ambas
-                // precisam voltar para zero junto com as partidas.
-                players.forEach(p => {
-                    p.matches = 0;
-                    p.wins = 0;
-                    p.waitCount = 0;
-                });
-
-                await persistPlayers();
-                await persistState();
-                await persistPlacements();
-
-                switchTab('lista');
-                render();
-            }
-        }
-
-        // ============================================================
-        // REALTIME
-        // ============================================================
-        let realtimeTimer = null;
-        let realtimeBusy = false;
-
-        async function refreshFromRealtime() {
-            if (realtimeBusy) return;
-            realtimeBusy = true;
-            try {
-                await loadState();
-            } finally {
-                realtimeBusy = false;
-            }
-        }
-
-        db.channel('volei-detran-sync')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'jogadores' }, () => {
-                clearTimeout(realtimeTimer);
-                realtimeTimer = setTimeout(refreshFromRealtime, 150);
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_jogo' }, () => {
-                clearTimeout(realtimeTimer);
-                realtimeTimer = setTimeout(refreshFromRealtime, 150);
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'jogo_jogadores' }, () => {
-                clearTimeout(realtimeTimer);
-                realtimeTimer = setTimeout(refreshFromRealtime, 150);
-            })
-            .subscribe((status) => {
-                console.log('Realtime:', status);
-            });
-
-        // Inicialização.
-        // O estado do jogo é público para leitura; as ações administrativas
-        // só ficam disponíveis após uma sessão válida do Supabase Auth.
-        render();
-        initSupabaseAuth();
-        loadState().catch(error => {
-            console.error('Falha ao carregar o estado do Supabase:', error);
-            alert('Não foi possível carregar os dados do Supabase.');
-        });
-    </script>
+        
+        function switchTab(t){currentTab=t;document.getElementById('tab-lista').style.display=t==='lista'?'block':'none';document.getElementById('tab-quadra').style.display=t==='quadra'?'block':'none';document.getElementById('tab-resenha').style.display=t==='resenha'?'block':'none';document.getElementById('btn-tab-lista').className='tab-btn'+(t==='lista'?' active':'');document.getElementById('btn-tab-quadra').className='tab-btn'+(t==='quadra'?' active':'');document.getElementById('btn-tab-resenha').className='tab-btn'+(t==='resenha'?' active':'')}
+function openLoginModal(){document.getElementById('login-modal').style.display='flex'}function closeLoginModal(){document.getElementById('login-modal').style.display='none';document.getElementById('admin-email').value='';document.getElementById('admin-pass').value=''}
+async function loginAdmin(){const email=document.getElementById('admin-email').value.trim(),pass=document.getElementById('admin-pass').value;if(!email||!pass){alert('Informe o e-mail e a senha.');return}const {data,error}=await db.auth.signInWithPassword({email,password:pass});if(error){alert('E-mail ou senha incorretos.');console.error(error);return}currentAdmin=data.user.email;closeLoginModal();render()}
+async function logoutAdmin(){await db.auth.signOut();currentAdmin=null;render()}
+async function addPlayer(){if(!currentAdmin)return;if(players.length>=30){alert('A lista atingiu o limite máximo de 30 pessoas.');return}const input=document.getElementById('player-name'),sex=document.getElementById('player-sex').value,name=input.value.trim();if(!name)return;const p={id:Date.now(),name,sex,confirmed:true,matches:0,wins:0,waitCount:0,queueOrder:nextQueueOrder++};players.push(p);if(gameStarted)queue.push(p);try{await persistAll();input.value='';render()}catch(e){players=players.filter(x=>x.id!==p.id);queue=queue.filter(x=>x.id!==p.id);alert('Não foi possível salvar o jogador.');console.error(e)}}
+async function togglePresence(id){if(!currentAdmin)return;const p=players.find(x=>x.id===id);if(!p)return;p.confirmed=!p.confirmed;try{await persistPlayers();render()}catch(e){p.confirmed=!p.confirmed;alert('Não foi possível salvar a alteração.');console.error(e)}}
+async function removePlayer(id){if(!currentAdmin||!confirm('Remover este jogador?'))return;const old=[players,teamA,teamB,queue].map(x=>[...x]);players=players.filter(p=>p.id!==id);queue=queue.filter(p=>p.id!==id);if(teamA.some(p=>p.id===id)){teamA=teamA.filter(p=>p.id!==id);if(queue.length)teamA.push({...queue.shift(),waitCount:0})}if(teamB.some(p=>p.id===id)){teamB=teamB.filter(p=>p.id!==id);if(queue.length)teamB.push({...queue.shift(),waitCount:0})}try{const {error}=await db.from('jogadores').delete().eq('id',id);if(error)throw error;await persistAll();render()}catch(e){[players,teamA,teamB,queue]=old;alert('Não foi possível remover o jogador.');console.error(e)}}
+function requiredWomenPerTeam(c=players.filter(p=>p.confirmed)){const w=c.filter(p=>p.sex==='F').length;return c.length>0&&w/c.length>=0.5?2:1}
+function waitingPriority(a,b){return b.waitCount-a.waitCount||a.queueOrder-b.queueOrder}
+function takeBestWoman(pool){const c=pool.filter(p=>p.sex==='F').sort(waitingPriority);if(!c.length)return null;const chosen=c[0];pool.splice(pool.findIndex(p=>p.id===chosen.id),1);return chosen}
+function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){const available=[...pool].sort(waitingPriority),A=[...keepA],B=[...keepB];const fill=team=>{let missing=Math.max(0,requiredWomen-team.filter(p=>p.sex==='F').length);while(missing>0&&team.length<4){const w=takeBestWoman(available);if(!w)break;team.push(w);missing--}};fill(A);fill(B);while(A.length<4&&available.length)A.push(available.shift());while(B.length<4&&available.length)B.push(available.shift());return{A,B,remaining:available}}
+async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.confirmed).map(p=>({...p,waitCount:0}));if(confirmed.length<8){alert('É necessário pelo menos 8 confirmados para iniciar!');return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
+async function handleWin(winner){if(!currentAdmin||!gameStarted)return;teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});queue.forEach(p=>p.waitCount++);let leaving=[];if(winner==='A'){teamAWins++;teamBWins=0;if(teamAWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamAWins=0}else{leaving=[...teamB];teamB=[]}}else{teamBWins++;teamAWins=0;if(teamBWins===2){leaving=[...teamA,...teamB];teamA=[];teamB=[];teamBWins=0}else{leaving=[...teamA];teamA=[]}}leaving.forEach(p=>p.waitCount=0);const neededA=4-teamA.length,neededB=4-teamB.length,totalNeeded=neededA+neededB;let available=[...queue].sort(waitingPriority);const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.confirmed));const candidatePool=[...available,...leaving];const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);try{await persistAll();render()}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}}
+async function moveQueue(idx,dir){if(!currentAdmin)return;const target=idx+dir;if(target<0||target>=queue.length)return;[queue[idx],queue[target]]=[queue[target],queue[idx]];try{await persistState();render()}catch(e){[queue[idx],queue[target]]=[queue[target],queue[idx]];alert('Não foi possível salvar a ordem da fila.');console.error(e)}}
+async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha?'))return;players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;try{await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
+async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState()}
+init();
+
+</script>
 </body>
 </html>
