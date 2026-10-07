@@ -142,8 +142,7 @@ VOLEI-DETRAN/
 │
 ├── index.html
 ├── README.md
-├── VOLEI-DETRAN-SUPABASE-FINAL.sql
-├── VOLEI-DETRAN-STATUS-MIGRATION.sql
+├── VOLEI-DETRAN-SUPABASE.sql
 └── LICENSE
 ```
 
@@ -180,7 +179,7 @@ Crie um projeto no Supabase.
 Depois execute o SQL de estrutura inicial:
 
 ``` text
-VOLEI-DETRAN-SUPABASE-FINAL.sql
+VOLEI-DETRAN-SUPABASE.sql
 ```
 
 no:
