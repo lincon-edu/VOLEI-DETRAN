@@ -428,7 +428,7 @@ Posteriormente foram adicionados:
 
 # 👨‍💻 Autor
 
-Projeto desenvolvido por **Lincon**.
+Projeto desenvolvido por **Victor Belini** (com ajuda de **Lincon Eduardo**).
 
 **Vôlei DETRAN --- Sistema de organização e rotação de partidas de
 vôlei.**
@@ -445,5 +445,3 @@ existentes e descreva claramente a alteração proposta.
 ------------------------------------------------------------------------
 
 ## 📄 Licença
-
-Defina aqui a licença desejada para o projeto antes de torná-lo público.
