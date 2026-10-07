@@ -79,7 +79,6 @@
         .tab-btn { flex: 1; border: none; background: transparent; font-weight: bold; font-size: 13px; color: #6b7280; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
         .tab-btn.active { color: #16a34a; border-top: 3px solid #16a34a; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
@@ -160,8 +159,8 @@
     <div class="modal" id="login-modal">
         <div class="modal-body">
             <h3>Acesso Administrativo</h3>
-            <input type="email" id="admin-user" placeholder="E-mail do administrador" autocomplete="username">
-            <input type="password" id="admin-pass" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter') loginAdmin()">
+            <input type="text" id="admin-user" placeholder="Usuário (Victor, Joao V, Glauber)">
+            <input type="password" id="admin-pass" placeholder="Senha">
             <div class="modal-actions">
                 <button onclick="closeLoginModal()" style="padding:8px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer;">Cancelar</button>
                 <button onclick="loginAdmin()" style="padding:8px 14px; background:#16a34a; color:#fff; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Entrar</button>
@@ -169,92 +168,226 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const SUPABASE_URL = 'https://oxacdamrkrokzocamvfw.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_uusWwV0ef8ux-Dr__IFlPA_WGwQpAqO';
-        const { createClient } = window.supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-        });
+        const { createClient } = supabase;
+        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Mantemos exatamente o login local deste projeto.
+        // A persistência e a sincronização dos dados ficam no Supabase.
+        const adminAccounts = {
+            "lincon": "2606",
+            "victor": "2468",
+            "joao v": "bardosedutor",
+            "glauber": "mestrefodao"
+        };
 
         let currentAdmin = null;
-        let currentUser = null;
         let currentTab = 'lista';
         let gameStarted = false;
         let teamAWins = 0;
         let teamBWins = 0;
+        let syncing = false;
+
+        const jogadoresIniciais = [
+            ["Victor","M"], ["Joao V","M"], ["Glauber","M"], ["Lucas","M"], ["Mateus","M"], ["Gabriel","M"],
+            ["Rafael","M"], ["João","M"], ["Pedro","M"], ["Tiago","M"], ["Marcos","M"], ["André","M"],
+            ["Felipe","M"], ["Carlos","M"], ["Eduardo","M"], ["Marcelo","M"], ["Gustavo","M"], ["Fernando","M"],
+            ["Bruno","M"], ["Diego","M"], ["Leonardo","M"], ["Thiago","M"], ["Rodrigo","M"],
+            ["Ana","F"], ["Julia","F"], ["Beatriz","F"], ["Mariana","F"], ["Camila","F"], ["Letícia","F"], ["Amanda","F"]
+        ];
+
         let players = [];
         let teamA = [];
         let teamB = [];
         let queue = [];
-        let realtimeChannel = null;
-        let loading = true;
-        let syncing = false;
+        let nextQueueOrder = 1;
 
-        const jogadoresIniciais = [
-            ['Victor','M'], ['Joao V','M'], ['Glauber','M'], ['Lucas','M'], ['Mateus','M'], ['Gabriel','M'],
-            ['Rafael','M'], ['João','M'], ['Pedro','M'], ['Tiago','M'], ['Marcos','M'], ['André','M'],
-            ['Felipe','M'], ['Carlos','M'], ['Eduardo','M'], ['Marcelo','M'], ['Gustavo','M'], ['Fernando','M'],
-            ['Bruno','M'], ['Diego','M'], ['Leonardo','M'], ['Thiago','M'], ['Rodrigo','M'],
-            ['Ana','F'], ['Julia','F'], ['Beatriz','F'], ['Mariana','F'], ['Camila','F'], ['Letícia','F'], ['Amanda','F']
-        ];
-
-        function escapeHtml(value) {
-            return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-        }
-
-        function isAdmin() { return currentUser !== null; }
-
-        function requiredWomenPerTeam(confirmedPlayers = players.filter(p => p.confirmed)) {
-            const women = confirmedPlayers.filter(p => p.sex === 'F').length;
-            return confirmedPlayers.length > 0 && women / confirmedPlayers.length >= 0.5 ? 2 : 1;
-        }
-
-        function waitingPriority(a, b) {
-            return (b.waitCount || 0) - (a.waitCount || 0) ||
-                   new Date(a.createdAt || 0) - new Date(b.createdAt || 0) ||
-                   a.id - b.id;
-        }
-
-        function takeBestWoman(pool) {
-            const candidates = pool.filter(p => p.sex === 'F').sort(waitingPriority);
-            if (!candidates.length) return null;
-            const chosen = candidates[0];
-            const index = pool.findIndex(p => p.id === chosen.id);
-            if (index >= 0) pool.splice(index, 1);
-            return chosen;
-        }
-
-        function composeTeams(pool, keepA = [], keepB = [], requiredWomen = 1) {
-            const available = [...pool].sort(waitingPriority);
-            const A = [...keepA];
-            const B = [...keepB];
-            const fillRequiredWomen = team => {
-                let missing = Math.max(0, requiredWomen - team.filter(p => p.sex === 'F').length);
-                while (missing > 0 && team.length < 4) {
-                    const woman = takeBestWoman(available);
-                    if (!woman) break;
-                    team.push(woman);
-                    missing--;
-                }
+        function mapPlayer(row) {
+            return {
+                id: Number(row.id),
+                name: row.nome,
+                sex: row.sexo,
+                confirmed: !!row.confirmado,
+                matches: Number(row.partidas || 0),
+                wins: Number(row.vitorias || 0),
+                waitCount: Number(row.espera || 0),
+                queueOrder: Number(row.queue_order || row.id)
             };
-            fillRequiredWomen(A);
-            fillRequiredWomen(B);
-            while (A.length < 4 && available.length) A.push(available.shift());
-            while (B.length < 4 && available.length) B.push(available.shift());
-            return { A, B, remaining: available };
+        }
+
+        function playerPayload(p) {
+            return {
+                nome: p.name,
+                sexo: p.sex,
+                confirmado: p.confirmed,
+                partidas: p.matches,
+                vitorias: p.wins,
+                espera: p.waitCount
+            };
+        }
+
+        async function loadState() {
+            syncing = true;
+
+            const [{ data: playerRows, error: pErr },
+                   { data: stateRows, error: sErr },
+                   { data: placementRows, error: jErr }] = await Promise.all([
+                db.from('jogadores').select('*').order('id', { ascending: true }),
+                db.from('estado_jogo').select('*').eq('id', 1).maybeSingle(),
+                db.from('jogo_jogadores').select('*').order('posicao', { ascending: true })
+            ]);
+
+            if (pErr) console.error('Erro carregando jogadores:', pErr);
+            if (sErr) console.error('Erro carregando estado:', sErr);
+            if (jErr) console.error('Erro carregando posições:', jErr);
+
+            if (playerRows && playerRows.length) {
+                players = playerRows.map(mapPlayer);
+
+                const placements = placementRows || [];
+                const byId = new Map(players.map(p => [p.id, p]));
+                teamA = placements
+                    .filter(x => x.localizacao === 'TIME_A')
+                    .sort((a,b) => a.posicao-b.posicao)
+                    .map(x => byId.get(Number(x.jogador_id)))
+                    .filter(Boolean);
+                teamB = placements
+                    .filter(x => x.localizacao === 'TIME_B')
+                    .sort((a,b) => a.posicao-b.posicao)
+                    .map(x => byId.get(Number(x.jogador_id)))
+                    .filter(Boolean);
+                queue = placements
+                    .filter(x => x.localizacao === 'FILA')
+                    .sort((a,b) => a.posicao-b.posicao)
+                    .map(x => byId.get(Number(x.jogador_id)))
+                    .filter(Boolean);
+
+                // Jogadores ainda não posicionados ficam na fila, sem alterar a ordem existente.
+                const placed = new Set([...teamA, ...teamB, ...queue].map(p => p.id));
+                players.filter(p => !placed.has(p.id)).forEach(p => queue.push(p));
+
+                nextQueueOrder = Math.max(0, ...players.map(p => p.queueOrder || p.id)) + 1;
+            }
+
+            if (stateRows) {
+                gameStarted = !!stateRows.iniciado;
+                teamAWins = Number(stateRows.vitorias_time_a || 0);
+                teamBWins = Number(stateRows.vitorias_time_b || 0);
+            }
+
+            syncing = false;
+            render();
+        }
+
+        async function persistPlayers() {
+            if (syncing || !players.length) return;
+            for (const p of players) {
+                const { error } = await db
+                    .from('jogadores')
+                    .update(playerPayload(p))
+                    .eq('id', p.id);
+                if (error) console.error('Erro salvando jogador', p.id, error);
+            }
+        }
+
+        async function persistState() {
+            const { error } = await db
+                .from('estado_jogo')
+                .upsert({
+                    id: 1,
+                    iniciado: gameStarted,
+                    vitorias_time_a: teamAWins,
+                    vitorias_time_b: teamBWins
+                }, { onConflict: 'id' });
+            if (error) console.error('Erro salvando estado do jogo:', error);
+        }
+
+        async function persistPlacements() {
+            const rows = [];
+
+            teamA.forEach((p, i) => rows.push({
+                jogador_id: p.id,
+                localizacao: 'TIME_A',
+                posicao: i + 1
+            }));
+            teamB.forEach((p, i) => rows.push({
+                jogador_id: p.id,
+                localizacao: 'TIME_B',
+                posicao: i + 1
+            }));
+            queue.forEach((p, i) => rows.push({
+                jogador_id: p.id,
+                localizacao: 'FILA',
+                posicao: i + 1
+            }));
+
+            const { error: delError } = await db
+                .from('jogo_jogadores')
+                .delete()
+                .neq('jogador_id', 0);
+
+            if (delError) {
+                console.error('Erro limpando posições:', delError);
+                return;
+            }
+
+            if (rows.length) {
+                const { error } = await db
+                    .from('jogo_jogadores')
+                    .insert(rows);
+                if (error) console.error('Erro salvando posições:', error);
+            }
+        }
+
+        async function persistAll() {
+            await persistPlayers();
+            await persistState();
+            await persistPlacements();
+        }
+
+        async function insertPlayer(p) {
+            const { data, error } = await db
+                .from('jogadores')
+                .insert(playerPayload(p))
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Erro inserindo jogador:', error);
+                alert('Não foi possível salvar o jogador no Supabase. Verifique as políticas RLS.');
+                return null;
+            }
+            return mapPlayer(data);
+        }
+
+        async function deletePlayerFromDb(id) {
+            const { error } = await db.from('jogadores').delete().eq('id', id);
+            if (error) {
+                console.error('Erro removendo jogador:', error);
+                alert('Não foi possível remover o jogador do Supabase.');
+                return false;
+            }
+            return true;
         }
 
         function render() {
-            const admin = isAdmin();
-            const btnLogin = document.getElementById('btn-login');
-            btnLogin.innerText = admin ? `Sair (${currentAdmin})` : '🔑 Entrar ADM';
-            btnLogin.onclick = admin ? logoutAdmin : openLoginModal;
-            btnLogin.className = admin ? 'btn-danger' : 'btn-auth';
+            const isAdmin = currentAdmin !== null;
 
-            document.getElementById('admin-add-section').style.display = admin ? 'flex' : 'none';
-            document.getElementById('btn-reset').style.display = (gameStarted && admin) ? 'block' : 'none';
-            document.getElementById('btn-start').style.display = (!gameStarted && admin) ? 'block' : 'none';
+            const btnLogin = document.getElementById('btn-login');
+            if (isAdmin) {
+                btnLogin.innerText = `Sair (${currentAdmin})`;
+                btnLogin.onclick = logoutAdmin;
+                btnLogin.className = 'btn-danger';
+            } else {
+                btnLogin.innerText = '🔑 Entrar ADM';
+                btnLogin.onclick = openLoginModal;
+                btnLogin.className = 'btn-auth';
+            }
+
+            document.getElementById('admin-add-section').style.display = isAdmin ? 'flex' : 'none';
 
             const listEl = document.getElementById('players-list');
             listEl.innerHTML = '';
@@ -265,12 +398,16 @@
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <div style="display:flex; align-items:center; min-width:0;">
-                        <button class="check-btn" style="background:${p.confirmed ? '#16a34a' : '#d1d5db'}; cursor:${admin ? 'pointer' : 'default'};" ${admin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>${p.confirmed ? '✓' : '✕'}</button>
+                        <button class="check-btn" style="background:${p.confirmed ? '#16a34a' : '#d1d5db'}; cursor:${isAdmin ? 'pointer' : 'default'};" ${isAdmin ? `onclick="togglePresence(${p.id})"` : 'disabled'}>
+                            ${p.confirmed ? '✓' : '✕'}
+                        </button>
                         <span style="width:28px; color:#6b7280; font-size:13px; font-weight:bold; flex-shrink:0;">${idx + 1}.</span>
-                        <span style="font-size:15px; font-weight:600; color:${p.confirmed ? '#1f2937' : '#9ca3af'}; text-decoration:${p.confirmed ? 'none' : 'line-through'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(p.name)}</span>
+                        <span style="font-size:15px; font-weight:600; color:${p.confirmed ? '#1f2937' : '#9ca3af'}; text-decoration:${p.confirmed ? 'none' : 'line-through'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${p.name}
+                        </span>
                         <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span>
                     </div>
-                    ${admin ? `<button class="btn-del" onclick="removePlayer(${p.id})">🗑️</button>` : ''}
+                    ${isAdmin ? `<button class="btn-del" onclick="removePlayer(${p.id})">🗑️</button>` : ''}
                 `;
                 listEl.appendChild(li);
             });
@@ -279,43 +416,83 @@
             document.getElementById('total-male').innerText = players.filter(p => p.sex === 'M').length;
             document.getElementById('total-players').innerText = players.length;
 
+            document.getElementById('btn-reset').style.display = (gameStarted && isAdmin) ? 'block' : 'none';
+            document.getElementById('btn-start').style.display = (!gameStarted && isAdmin) ? 'block' : 'none';
+
             document.getElementById('wins-a').innerText = `${teamAWins} 🏆`;
             document.getElementById('wins-b').innerText = `${teamBWins} 🏆`;
 
             const listA = document.getElementById('list-team-a');
+            listA.innerHTML = '';
+            teamA.forEach(p => {
+                listA.innerHTML += `<li>${p.name} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span> ${isAdmin ? `<span onclick="removePlayer(${p.id})" style="cursor:pointer; color:#ef4444; float:right;">✕</span>` : ''}</li>`;
+            });
+
             const listB = document.getElementById('list-team-b');
-            listA.innerHTML = teamA.map(p => `<li>${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span></li>`).join('');
-            listB.innerHTML = teamB.map(p => `<li>${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span></li>`).join('');
-            document.getElementById('btn-win-a').style.display = admin ? 'block' : 'none';
-            document.getElementById('btn-win-b').style.display = admin ? 'block' : 'none';
+            listB.innerHTML = '';
+            teamB.forEach(p => {
+                listB.innerHTML += `<li>${p.name} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span> <span style="color:#9ca3af; font-size:11px;">(${p.matches}j)</span> ${isAdmin ? `<span onclick="removePlayer(${p.id})" style="cursor:pointer; color:#ef4444; float:right;">✕</span>` : ''}</li>`;
+            });
+
+            document.getElementById('btn-win-a').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-win-b').style.display = isAdmin ? 'block' : 'none';
 
             const queueEl = document.getElementById('queue-list');
             queueEl.innerHTML = '';
             document.getElementById('queue-count').innerText = `${queue.length} pessoas`;
-            if (!queue.length) {
+
+            if (queue.length === 0) {
                 queueEl.innerHTML = '<li style="color:#9ca3af; text-align:center; padding:16px;">Fila vazia</li>';
             } else {
                 queue.forEach((p, idx) => {
-                    const urgent = p.waitCount >= 2;
+                    const isUrgent = p.waitCount >= 2;
                     queueEl.innerHTML += `
-                        <li class="queue-item ${urgent ? 'priority' : ''}">
-                            <div><span style="color:#9ca3af; font-size:12px; margin-right:4px;">${idx + 1}º</span><b>${escapeHtml(p.name)}</b><span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span><span style="color:#9ca3af; font-size:11px; margin-left:4px;">(${p.matches}j)</span><span class="tag-wait ${urgent ? 'urgent' : ''}" style="margin-left:6px;">Espera: ${p.waitCount}</span></div>
-                            ${admin ? `<div class="queue-controls"><button onclick="moveQueue(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button><button onclick="moveQueue(${idx}, 1)" ${idx === queue.length - 1 ? 'disabled' : ''}>▼</button><button onclick="removePlayer(${p.id})" style="color:#ef4444;">✕</button></div>` : ''}
-                        </li>`;
+                        <li class="queue-item ${isUrgent ? 'priority' : ''}">
+                            <div>
+                                <span style="color:#9ca3af; font-size:12px; margin-right:4px;">${idx + 1}º</span>
+                                <b>${p.name}</b>
+                                <span style="color:#9ca3af; font-size:11px; margin-left:4px;">(${p.matches}j)</span>
+                                <span class="tag-wait ${isUrgent ? 'urgent' : ''}" style="margin-left:6px;">Espera: ${p.waitCount}</span>
+                            </div>
+                            ${isAdmin ? `
+                            <div class="queue-controls">
+                                <button onclick="moveQueue(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                                <button onclick="moveQueue(${idx}, 1)" ${idx === queue.length - 1 ? 'disabled' : ''}>▼</button>
+                                <button onclick="removePlayer(${p.id})" style="color:#ef4444;">✕</button>
+                            </div>` : ''}
+                        </li>
+                    `;
                 });
             }
 
             const resenhaEl = document.getElementById('resenha-list');
             resenhaEl.innerHTML = '';
-            [...players].sort((a,b) => b.wins - a.wins || b.matches - a.matches).forEach((p, idx) => {
-                const pct = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
-                const badge = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
-                resenhaEl.innerHTML += `<li class="rank-item"><div class="rank-pos ${badge}">${idx + 1}</div><div class="rank-details"><div style="font-weight:bold; font-size:14px;">${escapeHtml(p.name)} <span class="sex-tag ${p.sex === 'F' ? 'f' : ''}">${p.sex}</span></div><div class="rank-stats"><span>🏐 ${p.matches} Jogos</span><span style="color:#16a34a; font-weight:bold;">🏆 ${p.wins} Vitórias</span></div></div><div class="rank-pct"><div class="rank-pct-label">Aprov.</div><div class="rank-pct-val">${pct}%</div></div></li>`;
-            });
+            const ranked = [...players].sort((a, b) => b.wins - a.wins || b.matches - a.matches);
 
-            if (loading) {
-                document.getElementById('confirmed-count').innerText = 'Carregando...';
-            }
+            ranked.forEach((p, idx) => {
+                const pct = p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+                let badgeClass = '';
+                if (idx === 0) badgeClass = 'gold';
+                else if (idx === 1) badgeClass = 'silver';
+                else if (idx === 2) badgeClass = 'bronze';
+
+                resenhaEl.innerHTML += `
+                    <li class="rank-item">
+                        <div class="rank-pos ${badgeClass}">${idx + 1}</div>
+                        <div class="rank-details">
+                            <div style="font-weight:bold; font-size:14px;">${p.name}</div>
+                            <div class="rank-stats">
+                                <span>🏐 ${p.matches} Jogos</span>
+                                <span style="color:#16a34a; font-weight:bold;">🏆 ${p.wins} Vitórias</span>
+                            </div>
+                        </div>
+                        <div class="rank-pct">
+                            <div class="rank-pct-label">Aprov.</div>
+                            <div class="rank-pct-val">${pct}%</div>
+                        </div>
+                    </li>
+                `;
+            });
         }
 
         function switchTab(tab) {
@@ -335,283 +512,354 @@
             document.getElementById('admin-pass').value = '';
         }
 
-        async function loginAdmin() {
-            const email = document.getElementById('admin-user').value.trim();
-            const password = document.getElementById('admin-pass').value;
-            if (!email || !password) return alert('Informe e-mail e senha.');
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) return alert(`Falha no login: ${error.message}`);
-            currentUser = data.user;
-            currentAdmin = data.user.email || 'ADM';
-            closeLoginModal();
-            render();
+        function loginAdmin() {
+            const user = document.getElementById('admin-user').value.trim().toLowerCase();
+            const pass = document.getElementById('admin-pass').value.trim();
+
+            if (adminAccounts[user] && adminAccounts[user].toLowerCase() === pass.toLowerCase()) {
+                currentAdmin = user === 'victor' ? 'Victor' : user === 'joao v' ? 'Joao V' : user === 'lincon' ? 'Lincon' : 'Glauber';
+                closeLoginModal();
+                render();
+            } else {
+                alert("Usuário ou senha incorretos!");
+            }
         }
 
-        async function logoutAdmin() {
-            await supabaseClient.auth.signOut();
-            currentUser = null;
+        function logoutAdmin() {
             currentAdmin = null;
             render();
         }
 
-        function mapPlayer(row) {
-            return {
-                id: row.id,
-                name: row.nome,
-                sex: row.sexo,
-                confirmed: row.confirmado,
-                matches: row.partidas,
-                wins: row.vitorias,
-                waitCount: row.espera,
-                createdAt: row.criado_em
+        function requiredWomenPerTeam(confirmedPlayers = players.filter(p => p.confirmed)) {
+            const women = confirmedPlayers.filter(p => p.sex === 'F').length;
+            return confirmedPlayers.length > 0 && women / confirmedPlayers.length >= 0.5 ? 2 : 1;
+        }
+
+        function waitingPriority(a, b) {
+            return b.waitCount - a.waitCount || a.queueOrder - b.queueOrder;
+        }
+
+        function takeBestWoman(pool) {
+            const candidates = pool.filter(p => p.sex === 'F').sort(waitingPriority);
+            if (!candidates.length) return null;
+            const chosen = candidates[0];
+            pool.splice(pool.findIndex(p => p.id === chosen.id), 1);
+            return chosen;
+        }
+
+        function composeTeams(pool, keepA = [], keepB = [], requiredWomen = 1) {
+            const available = [...pool].sort(waitingPriority);
+            const A = [...keepA], B = [...keepB];
+
+            const fillRequiredWomen = team => {
+                let missing = Math.max(0, requiredWomen - team.filter(p => p.sex === 'F').length);
+                while (missing > 0 && team.length < 4) {
+                    const woman = takeBestWoman(available);
+                    if (!woman) break;
+                    team.push(woman);
+                    missing--;
+                }
             };
-        }
 
-        async function loadDatabase() {
-            loading = true;
-            render();
-            const [playersResult, stateResult, positionsResult] = await Promise.all([
-                supabaseClient.from('jogadores').select('*').order('criado_em', { ascending: true }),
-                supabaseClient.from('estado_jogo').select('*').eq('id', 1).maybeSingle(),
-                supabaseClient.from('jogo_jogadores').select('*').order('posicao', { ascending: true })
-            ]);
+            fillRequiredWomen(A);
+            fillRequiredWomen(B);
 
-            if (playersResult.error) throw playersResult.error;
-            if (stateResult.error) throw stateResult.error;
-            if (positionsResult.error) throw positionsResult.error;
+            while (A.length < 4 && available.length) A.push(available.shift());
+            while (B.length < 4 && available.length) B.push(available.shift());
 
-            players = playersResult.data.map(mapPlayer);
-            const state = stateResult.data;
-            gameStarted = !!state?.iniciado;
-            teamAWins = state?.vitorias_time_a || 0;
-            teamBWins = state?.vitorias_time_b || 0;
-            teamA = [];
-            teamB = [];
-            queue = [];
-
-            if (gameStarted) {
-                const byId = new Map(players.map(p => [p.id, p]));
-                for (const row of positionsResult.data) {
-                    const p = byId.get(row.jogador_id);
-                    if (!p) continue;
-                    if (row.localizacao === 'TIME_A') teamA.push(p);
-                    else if (row.localizacao === 'TIME_B') teamB.push(p);
-                    else queue.push(p);
-                }
-            }
-            loading = false;
-            render();
-        }
-
-        async function ensureAdmin() {
-            const { data } = await supabaseClient.auth.getSession();
-            currentUser = data.session?.user || null;
-            currentAdmin = currentUser?.email || null;
-        }
-
-        async function persistGameState() {
-            if (!isAdmin() || syncing) return;
-            syncing = true;
-            try {
-                const { error: stateError } = await supabaseClient.from('estado_jogo').upsert({
-                    id: 1,
-                    iniciado: gameStarted,
-                    vitorias_time_a: teamAWins,
-                    vitorias_time_b: teamBWins
-                });
-                if (stateError) throw stateError;
-
-                const { error: deleteError } = await supabaseClient.from('jogo_jogadores').delete().neq('jogador_id', 0);
-                if (deleteError) throw deleteError;
-
-                if (gameStarted) {
-                    const rows = [
-                        ...teamA.map((p, i) => ({ jogador_id: p.id, localizacao: 'TIME_A', posicao: i + 1 })),
-                        ...teamB.map((p, i) => ({ jogador_id: p.id, localizacao: 'TIME_B', posicao: i + 1 })),
-                        ...queue.map((p, i) => ({ jogador_id: p.id, localizacao: 'FILA', posicao: i + 1 }))
-                    ];
-                    if (rows.length) {
-                        const { error } = await supabaseClient.from('jogo_jogadores').insert(rows);
-                        if (error) throw error;
-                    }
-                }
-            } finally {
-                syncing = false;
-            }
-        }
-
-        async function updatePlayer(id, changes) {
-            const { error } = await supabaseClient.from('jogadores').update(changes).eq('id', id);
-            if (error) throw error;
+            return { A, B, remaining: available };
         }
 
         async function addPlayer() {
-            if (!isAdmin()) return;
-            if (players.length >= 30) return alert('A lista atingiu o limite máximo de 30 pessoas.');
-            const input = document.getElementById('player-name');
-            const sex = document.getElementById('player-sex').value;
-            const name = input.value.trim();
-            if (!name) return;
-            const { data, error } = await supabaseClient.from('jogadores').insert({ nome: name, sexo: sex, confirmado: true }).select().single();
-            if (error) return alert(`Erro ao adicionar jogador: ${error.message}`);
-            const newPlayer = mapPlayer(data);
-            players.push(newPlayer);
-            if (gameStarted) {
-                queue.push(newPlayer);
-                await persistGameState();
+            if (!currentAdmin) return;
+
+            if (players.length >= 30) {
+                alert("A lista atingiu o limite máximo de 30 pessoas.");
+                return;
             }
+
+            const input = document.getElementById('player-name');
+            const sexInput = document.getElementById('player-sex');
+            const name = input.value.trim();
+            const sex = sexInput.value;
+
+            if (!name) return;
+
+            const tempPlayer = {
+                name, sex, confirmed: true, matches: 0, wins: 0, waitCount: 0,
+                queueOrder: nextQueueOrder++
+            };
+
+            const saved = await insertPlayer(tempPlayer);
+            if (!saved) return;
+
+            saved.queueOrder = tempPlayer.queueOrder;
+            players.push(saved);
+
+            if (gameStarted) {
+                queue.push(saved);
+                await persistPlacements();
+            }
+
             input.value = '';
             render();
         }
 
         async function togglePresence(id) {
-            if (!isAdmin()) return;
+            if (!currentAdmin) return;
             const p = players.find(p => p.id === id);
             if (!p) return;
-            try {
-                await updatePlayer(id, { confirmado: !p.confirmed });
+
+            p.confirmed = !p.confirmed;
+            const { error } = await db.from('jogadores')
+                .update({ confirmado: p.confirmed })
+                .eq('id', p.id);
+
+            if (error) {
                 p.confirmed = !p.confirmed;
-                render();
-            } catch (e) { alert(`Erro ao alterar presença: ${e.message}`); }
+                console.error(error);
+                alert('Não foi possível atualizar a confirmação.');
+                return;
+            }
+
+            render();
         }
 
         async function removePlayer(id) {
-            if (!isAdmin()) return;
-            if (!confirm('Remover este jogador?')) return;
-            try {
-                const { error } = await supabaseClient.from('jogadores').delete().eq('id', id);
-                if (error) throw error;
-                players = players.filter(p => p.id !== id);
-                teamA = teamA.filter(p => p.id !== id);
-                teamB = teamB.filter(p => p.id !== id);
-                queue = queue.filter(p => p.id !== id);
-                if (gameStarted) {
-                    const requiredWomen = requiredWomenPerTeam(players.filter(p => p.confirmed));
-                    const composed = composeTeams([...queue, ...teamA, ...teamB], [], [], requiredWomen);
-                    teamA = composed.A;
-                    teamB = composed.B;
-                    queue = composed.remaining;
-                    await persistGameState();
-                }
-                render();
-            } catch (e) { alert(`Erro ao remover jogador: ${e.message}`); }
-        }
+            if (!currentAdmin) return;
+            if (!confirm("Remover este jogador?")) return;
 
-        async function startGame() {
-            if (!isAdmin()) return;
-            const confirmed = players.filter(p => p.confirmed).map(p => ({ ...p, waitCount: 0 }));
-            if (confirmed.length < 8) return alert('É necessário pelo menos 8 confirmados para iniciar!');
-            const requiredWomen = requiredWomenPerTeam(confirmed);
-            const womenCount = confirmed.filter(p => p.sex === 'F').length;
-            if (womenCount < requiredWomen * 2) return alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);
-            const composed = composeTeams(confirmed, [], [], requiredWomen);
-            teamA = composed.A;
-            teamB = composed.B;
-            queue = composed.remaining;
-            teamAWins = 0;
-            teamBWins = 0;
-            gameStarted = true;
-            try { await persistGameState(); render(); switchTab('quadra'); }
-            catch (e) { alert(`Erro ao salvar o início do jogo: ${e.message}`); }
-        }
+            const removed = players.find(p => p.id === id);
+            if (!removed) return;
 
-        async function handleWin(winner) {
-            if (!isAdmin() || !gameStarted) return;
-            const allCurrent = [...teamA, ...teamB];
-            try {
-                for (const p of allCurrent) {
-                    p.matches++;
-                    if ((winner === 'A' && teamA.some(x => x.id === p.id)) || (winner === 'B' && teamB.some(x => x.id === p.id))) p.wins++;
-                    await updatePlayer(p.id, { partidas: p.matches, vitorias: p.wins });
-                }
-                queue.forEach(p => p.waitCount++);
-                for (const p of queue) await updatePlayer(p.id, { espera: p.waitCount });
+            const ok = await deletePlayerFromDb(id);
+            if (!ok) return;
 
-                let leaving = [];
-                if (winner === 'A') {
-                    teamAWins++;
-                    teamBWins = 0;
-                    if (teamAWins === 2) { leaving = [...teamA, ...teamB]; teamA = []; teamB = []; teamAWins = 0; }
-                    else { leaving = [...teamB]; teamB = []; }
-                } else {
-                    teamBWins++;
-                    teamAWins = 0;
-                    if (teamBWins === 2) { leaving = [...teamA, ...teamB]; teamA = []; teamB = []; teamBWins = 0; }
-                    else { leaving = [...teamA]; teamA = []; }
-                }
-                leaving.forEach(p => p.waitCount = 0);
-                for (const p of leaving) await updatePlayer(p.id, { espera: 0 });
+            players = players.filter(p => p.id !== id);
+            queue = queue.filter(p => p.id !== id);
+            teamA = teamA.filter(p => p.id !== id);
+            teamB = teamB.filter(p => p.id !== id);
 
+            // Se alguém sair da quadra durante o jogo, recompõe as vagas sem quebrar o estado.
+            if (gameStarted) {
                 const requiredWomen = requiredWomenPerTeam(players.filter(p => p.confirmed));
-                const composed = composeTeams([...queue, ...leaving], teamA, teamB, requiredWomen);
+                const composed = composeTeams(queue, teamA, teamB, requiredWomen);
                 teamA = composed.A;
                 teamB = composed.B;
                 queue = composed.remaining;
-                teamA.forEach(p => p.waitCount = 0);
-                teamB.forEach(p => p.waitCount = 0);
-                for (const p of [...teamA, ...teamB]) await updatePlayer(p.id, { espera: 0 });
-                await persistGameState();
-                render();
-            } catch (e) { alert(`Erro ao registrar a vitória: ${e.message}`); }
+            }
+
+            await persistPlacements();
+            render();
+        }
+
+        async function startGame() {
+            if (!currentAdmin) return;
+
+            const confirmed = players.filter(p => p.confirmed).map(p => ({ ...p, waitCount: 0 }));
+
+            if (confirmed.length < 8) {
+                alert("É necessário pelo menos 8 confirmados para iniciar!");
+                return;
+            }
+
+            const requiredWomen = requiredWomenPerTeam(confirmed);
+            const womenCount = confirmed.filter(p => p.sex === 'F').length;
+
+            if (womenCount < requiredWomen * 2) {
+                alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);
+                return;
+            }
+
+            const composed = composeTeams(confirmed, [], [], requiredWomen);
+            if (composed.A.length !== 4 || composed.B.length !== 4) {
+                alert('Não foi possível montar dois times completos.');
+                return;
+            }
+
+            teamA = composed.A;
+            teamB = composed.B;
+            queue = composed.remaining;
+
+            teamAWins = 0;
+            teamBWins = 0;
+            gameStarted = true;
+
+            await persistAll();
+            render();
+            switchTab('quadra');
+        }
+
+        async function handleWin(winner) {
+            if (!currentAdmin || !gameStarted) return;
+
+            // Contabilizar partidas e vitórias
+            teamA.forEach(p => {
+                p.matches++;
+                if (winner === 'A') p.wins++;
+                const mainP = players.find(x => x.id === p.id);
+                if (mainP) { mainP.matches = p.matches; mainP.wins = p.wins; }
+            });
+
+            teamB.forEach(p => {
+                p.matches++;
+                if (winner === 'B') p.wins++;
+                const mainP = players.find(x => x.id === p.id);
+                if (mainP) { mainP.matches = p.matches; mainP.wins = p.wins; }
+            });
+
+            queue.forEach(p => p.waitCount++);
+
+            let leaving = [];
+
+            // IMPORTANTE: esta parte é a regra ORIGINAL do arquivo enviado.
+            // Uma equipe que vence duas vezes seguidas faz com que OS DOIS TIMES
+            // deixem a quadra. Não alteramos essa regra.
+            if (winner === 'A') {
+                teamAWins++;
+                teamBWins = 0;
+
+                if (teamAWins === 2) {
+                    leaving = [...teamA, ...teamB];
+                    teamA = [];
+                    teamB = [];
+                    teamAWins = 0;
+                } else {
+                    leaving = [...teamB];
+                    teamB = [];
+                }
+            } else {
+                teamBWins++;
+                teamAWins = 0;
+
+                if (teamBWins === 2) {
+                    leaving = [...teamA, ...teamB];
+                    teamA = [];
+                    teamB = [];
+                    teamBWins = 0;
+                } else {
+                    leaving = [...teamA];
+                    teamA = [];
+                }
+            }
+
+            leaving.forEach(p => p.waitCount = 0);
+
+            const neededA = 4 - teamA.length;
+            const neededB = 4 - teamB.length;
+            const totalNeeded = neededA + neededB;
+
+            const priorityQueue = queue.filter(p => p.waitCount >= 2);
+            const normalQueue = queue.filter(p => p.waitCount < 2);
+            let available = [...priorityQueue, ...normalQueue];
+            let entering = [];
+
+            if (available.length >= totalNeeded) {
+                entering = available.splice(0, totalNeeded);
+                queue = [...available, ...leaving];
+            } else {
+                entering = [...available];
+                queue = [];
+                const missing = totalNeeded - entering.length;
+
+                leaving.sort((a, b) => a.matches - b.matches);
+                entering = [...entering, ...leaving.splice(0, missing)];
+                queue = [...leaving];
+            }
+
+            entering.forEach(p => {
+                p.waitCount = 0;
+                if (teamA.length < 4) teamA.push(p);
+                else teamB.push(p);
+            });
+
+            await persistAll();
+            render();
         }
 
         async function moveQueue(idx, dir) {
-            if (!isAdmin()) return;
+            if (!currentAdmin) return;
+
             const target = idx + dir;
             if (target < 0 || target >= queue.length) return;
-            [queue[idx], queue[target]] = [queue[target], queue[idx]];
-            try { await persistGameState(); render(); }
-            catch (e) { alert(`Erro ao salvar a fila: ${e.message}`); }
+
+            const temp = queue[idx];
+            queue[idx] = queue[target];
+            queue[target] = temp;
+
+            await persistPlacements();
+            render();
         }
 
         async function resetGame() {
-            if (!isAdmin()) return;
-            if (!confirm('Encerrar o jogo e voltar para a lista?')) return;
-            gameStarted = false;
-            teamA = [];
-            teamB = [];
-            queue = [];
-            teamAWins = 0;
-            teamBWins = 0;
-            try { await persistGameState(); switchTab('lista'); render(); }
-            catch (e) { alert(`Erro ao reiniciar o jogo: ${e.message}`); }
-        }
+            if (!currentAdmin) return;
 
-        function subscribeRealtime() {
-            if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
-            realtimeChannel = supabaseClient.channel('volei-detran-live')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'jogadores' }, async () => {
-                    if (!syncing) await loadDatabase();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_jogo' }, async () => {
-                    if (!syncing) await loadDatabase();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'jogo_jogadores' }, async () => {
-                    if (!syncing) await loadDatabase();
-                })
-                .subscribe((status) => {
-                    if (status === 'CHANNEL_ERROR') console.warn('Falha no canal Realtime. Verifique se as tabelas foram adicionadas ao supabase_realtime.');
+            if (confirm("Encerrar o jogo e voltar para a lista?")) {
+                gameStarted = false;
+                teamA = [];
+                teamB = [];
+                queue = [];
+
+                teamAWins = 0;
+                teamBWins = 0;
+
+                // Reinício completo da partida: zera também o histórico da Resenha.
+                // Como derrotas são calculadas por (partidas - vitórias), ambas
+                // precisam voltar para zero junto com as partidas.
+                players.forEach(p => {
+                    p.matches = 0;
+                    p.wins = 0;
+                    p.waitCount = 0;
                 });
+
+                await persistPlayers();
+                await persistState();
+                await persistPlacements();
+
+                switchTab('lista');
+                render();
+            }
         }
 
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-            currentUser = session?.user || null;
-            currentAdmin = currentUser?.email || null;
-            render();
-        });
+        // ============================================================
+        // REALTIME
+        // ============================================================
+        let realtimeTimer = null;
+        let realtimeBusy = false;
 
-        (async function init() {
+        async function refreshFromRealtime() {
+            if (realtimeBusy) return;
+            realtimeBusy = true;
             try {
-                await ensureAdmin();
-                await loadDatabase();
-                subscribeRealtime();
-            } catch (e) {
-                loading = false;
-                render();
-                alert(`Não foi possível conectar ao banco. Execute primeiro o volei-detran-schema.sql no Supabase.\n\nDetalhe: ${e.message}`);
-                console.error(e);
+                await loadState();
+            } finally {
+                realtimeBusy = false;
             }
-        })();
+        }
+
+        db.channel('volei-detran-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jogadores' }, () => {
+                clearTimeout(realtimeTimer);
+                realtimeTimer = setTimeout(refreshFromRealtime, 150);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'estado_jogo' }, () => {
+                clearTimeout(realtimeTimer);
+                realtimeTimer = setTimeout(refreshFromRealtime, 150);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jogo_jogadores' }, () => {
+                clearTimeout(realtimeTimer);
+                realtimeTimer = setTimeout(refreshFromRealtime, 150);
+            })
+            .subscribe((status) => {
+                console.log('Realtime:', status);
+            });
+
+        // Inicialização.
+        render();
+        loadState().catch(error => {
+            console.error('Falha ao carregar o estado do Supabase:', error);
+            alert('Não foi possível carregar os dados do Supabase.');
+        });
     </script>
 </body>
 </html>
