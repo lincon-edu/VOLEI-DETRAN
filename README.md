@@ -142,7 +142,8 @@ VOLEI-DETRAN/
 │
 ├── index.html
 ├── README.md
-├── VOLEI-DETRAN-SUPABASE.sql
+├── VOLEI-DETRAN-SUPABASE-FINAL.sql
+├── VOLEI-DETRAN-STATUS-MIGRATION.sql
 └── LICENSE
 ```
 
@@ -179,7 +180,7 @@ Crie um projeto no Supabase.
 Depois execute o SQL de estrutura inicial:
 
 ``` text
-VOLEI-DETRAN-SUPABASE.sql
+VOLEI-DETRAN-SUPABASE-FINAL.sql
 ```
 
 no:
@@ -330,7 +331,7 @@ Os jogadores continuam cadastrados na lista.
 ------------------------------------------------------------------------
 
 # 📌 Regras atuais resumidas
-```text
+
   Regra                                                 Valor
   --------------------------------- -------------------------
   Máximo de jogadores cadastrados                          40
@@ -343,7 +344,7 @@ Os jogadores continuam cadastrados na lista.
   Jogadores confirmados na quadra                         Sim
   Vitória consecutiva                 Time vencedor permanece
   2 vitórias consecutivas                 Ambos os times saem
-```
+
 ------------------------------------------------------------------------
 
 # 🧭 Próximas melhorias
@@ -428,7 +429,7 @@ Posteriormente foram adicionados:
 
 # 👨‍💻 Autor
 
-Projeto desenvolvido por **Victor Belini** (com ajuda de **Lincon Eduardo**).
+Projeto desenvolvido por **Victor Belini** (com apoio de Lincon **Eduardo**).
 
 **Vôlei DETRAN --- Sistema de organização e rotação de partidas de
 vôlei.**
@@ -443,5 +444,3 @@ Antes de alterar a lógica de rotação, preserve as regras de negócio
 existentes e descreva claramente a alteração proposta.
 
 ------------------------------------------------------------------------
-
-## 📄 Licença
