@@ -347,43 +347,6 @@ Os jogadores continuam cadastrados na lista.
 
 ------------------------------------------------------------------------
 
-# 🧭 Próximas melhorias
-
-O projeto continuará evoluindo.
-
-Algumas funcionalidades planejadas para futuras versões:
-
-### ⚙️ Configurações do jogo pelo ADM
-
-Criar uma área de configurações onde o administrador possa alterar
-diretamente pela aplicação:
-
--   **Quantidade de jogadores por time**
-    -   Ex.: 4, 5, 6 etc.
--   **Quantidade mínima de mulheres por time**
-    -   Ex.: 1, 2 etc.
--   **Regra automática de mulheres**
-    -   Definir se a regra de 50% continuará sendo utilizada.
--   **Regra de rotação após duas vitórias**
-    -   Criar uma flag para determinar o comportamento após o time
-        vencer duas partidas consecutivas.
-
-### 🏆 Próxima regra planejada
-
-Uma das opções futuras será:
-
-> **Quando um time vencer duas partidas consecutivas e sair da quadra,
-> ele poderá ser colocado como o próximo time a entrar novamente.**
-
-Essa regra deverá ser configurável pelo ADM através de uma flag,
-permitindo escolher entre:
-
-``` text
-☐ Time que venceu duas vezes é o próximo a entrar
-```
-
-ou manter o comportamento padrão da fila.
-
 ### 🎛️ Configuração geral
 
 A ideia é futuramente transformar as regras atualmente fixas no código
@@ -429,7 +392,7 @@ Posteriormente foram adicionados:
 
 # 👨‍💻 Autor
 
-Projeto desenvolvido por **Victor Belini** (com apoio de Lincon **Eduardo**).
+Projeto desenvolvido por **Victor Belini** (com apoio de **Lincon Eduardo**).
 
 **Vôlei DETRAN --- Sistema de organização e rotação de partidas de
 vôlei.**
