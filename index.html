@@ -330,6 +330,8 @@
             letter-spacing:.04em;
         }
         .tag-wait.urgent { background: rgba(245,158,11,.18); color:#FBBF24; border-color: rgba(245,158,11,.4); }
+        .tag-next-winner { background:rgba(185,255,61,.16); color:var(--lime); border-color:rgba(185,255,61,.5); }
+        .queue-item.next-winner { border-color:rgba(185,255,61,.65); box-shadow:inset 3px 0 0 var(--lime); }
         .queue-controls{ display:flex; gap:5px; }
         .queue-controls button {
             background: rgba(255,255,255,.05); border: 1px solid var(--line); color:var(--text);
@@ -606,6 +608,8 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentAdmin=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0;
 let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false;
 let gameConfig={teamSize:4,minWomen:1,autoWomen50:true,winnerReturnsNext:false};
+// Marcador positivo para compatibilidade com colunas espera que não aceitam valores negativos.
+const NEXT_WINNER_WAIT_SENTINEL=999999;
 const jogadoresIniciais=[['Victor','M'],['Joao V','M'],['Glauber','M'],['Lucas','M'],['Mateus','M'],['Gabriel','M'],['Rafael','M'],['João','M'],['Pedro','M'],['Tiago','M'],['Marcos','M'],['André','M'],['Felipe','M'],['Carlos','M'],['Eduardo','M'],['Marcelo','M'],['Gustavo','M'],['Fernando','M'],['Bruno','M'],['Diego','M'],['Leonardo','M'],['Thiago','M'],['Rodrigo','M'],['Ana','F'],['Julia','F'],['Beatriz','F'],['Mariana','F'],['Camila','F'],['Letícia','F'],['Amanda','F']];
 function mapPlayer(r){
     const status=r.status||(r.confirmado?'confirmado':'ausente');
@@ -748,16 +752,16 @@ function render() {
                 queueEl.innerHTML = '<li class="empty-state">Ninguém aguardando na fila</li>';
             } else {
                 queue.forEach((p, idx) => {
-                    const isUrgent = p.waitCount >= 2;
+                    const isNextWinner = p.waitCount === NEXT_WINNER_WAIT_SENTINEL;
+                    const isUrgent = p.waitCount >= 2 && !isNextWinner;
                     queueEl.innerHTML += `
-                        <li class="queue-item ${isUrgent ? 'priority' : ''}">
+                        <li class="queue-item ${isNextWinner ? 'next-winner' : isUrgent ? 'priority' : ''}">
                             <div class="q-left">
                                 <span class="q-pos">${idx + 1}</span>
                                 <div>
                                     <div class="q-name">${p.name}</div>
                                     <div class="q-meta">
-                                        <span class="tag-wait">${p.matches} jogos</span>
-                                        <span class="tag-wait ${isUrgent ? 'urgent' : ''}">Espera: ${p.waitCount}</span>
+                                        ${isNextWinner ? '<span class="tag-wait tag-next-winner">🏆 Próximo vencedor</span>' : `<span class="tag-wait">${p.matches} jogos</span><span class="tag-wait ${isUrgent ? 'urgent' : ''}">Espera: ${p.waitCount}</span>`}
                                     </div>
                                 </div>
                             </div>
@@ -927,10 +931,30 @@ async function togglePresence(id){
 async function removePlayer(id){if(!currentAdmin||!confirm('Remover este jogador?'))return;const old=[players,teamA,teamB,queue].map(x=>[...x]);players=players.filter(p=>p.id!==id);queue=queue.filter(p=>p.id!==id);if(teamA.some(p=>p.id===id)){teamA=teamA.filter(p=>p.id!==id);if(queue.length)teamA.push({...queue.shift(),waitCount:0})}if(teamB.some(p=>p.id===id)){teamB=teamB.filter(p=>p.id!==id);if(queue.length)teamB.push({...queue.shift(),waitCount:0})}try{const {error}=await db.from('jogadores').delete().eq('id',id);if(error)throw error;await persistAll();render()}catch(e){[players,teamA,teamB,queue]=old;alert('Não foi possível remover o jogador.');console.error(e)}}
 // A ordem da fila exibida na tela é a prioridade real de entrada.
 // A regra de sexo vem primeiro; dentro dela, respeitamos exatamente a ordem da fila.
-function takeBestWoman(pool){const idx=pool.findIndex(p=>p.sex==='F');if(idx===-1)return null;return pool.splice(idx,1)[0]}
+function takeBestWoman(pool){
+    const idx=pool.findIndex(p=>p.sex==='F');
+    if(idx===-1)return null;
+    return pool.splice(idx,1)[0];
+}
+function takeBestMan(pool){
+    // Prioriza homens para não exceder o mínimo configurado de mulheres
+    // enquanto houver homens disponíveis na fila/candidatos.
+    const idx=pool.findIndex(p=>p.sex==='M');
+    if(idx===-1)return null;
+    return pool.splice(idx,1)[0];
+}
+function takeNextPlayer(pool){
+    // Regra de distribuição:
+    // 1) primeiro preenche o mínimo obrigatório de mulheres de cada time;
+    // 2) nas vagas restantes, prioriza homens;
+    // 3) só coloca mulheres além do mínimo quando não houver mais homens
+    //    disponíveis entre os próximos candidatos.
+    return takeBestMan(pool) || pool.shift() || null;
+}
 function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
-    // NÃO ordenar por waitCount/queueOrder: a fila pode ser reordenada manualmente pelo ADM.
-    // Portanto, pool[0] é sempre o primeiro da fila.
+    // A ordem manual da fila é preservada dentro de cada grupo de sexo.
+    // Mulheres são selecionadas primeiro somente para cumprir o mínimo;
+    // nas demais vagas, homens têm prioridade.
     const available=[...pool],A=[...keepA],B=[...keepB];
     const fillRequiredWomen=team=>{
         let missing=Math.max(0,requiredWomen-team.filter(p=>p.sex==='F').length);
@@ -941,12 +965,24 @@ function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
             missing--;
         }
     };
-    // Primeiro garante a quantidade mínima de mulheres em cada time.
+
+    // Garante o mínimo configurado de mulheres em cada time.
     fillRequiredWomen(A);
     fillRequiredWomen(B);
-    // Depois, preenche todas as vagas restantes seguindo a ordem atual da fila.
-    while(A.length<gameConfig.teamSize&&available.length)A.push(available.shift());
-    while(B.length<gameConfig.teamSize&&available.length)B.push(available.shift());
+
+    // Completa as vagas restantes sem incluir mulheres adicionais enquanto
+    // houver homens disponíveis. Se só restarem mulheres, elas podem entrar.
+    while(A.length<gameConfig.teamSize&&available.length){
+        const player=takeNextPlayer(available);
+        if(!player)break;
+        A.push(player);
+    }
+    while(B.length<gameConfig.teamSize&&available.length){
+        const player=takeNextPlayer(available);
+        if(!player)break;
+        B.push(player);
+    }
+
     return{A,B,remaining:available};
 }
 async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<gameConfig.teamSize*2){alert(`É necessário pelo menos ${gameConfig.teamSize*2} confirmados para iniciar com times de ${gameConfig.teamSize}.`);return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
@@ -954,7 +990,9 @@ async function handleWin(winner){
     if(!currentAdmin||!gameStarted)return;
     teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});
     teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});
-    queue.forEach(p=>p.waitCount++);
+    // O marcador -1 identifica os jogadores do time que venceu duas seguidas.
+    // Ele não deve ser incrementado como tempo de espera.
+    queue.forEach(p=>{if(p.waitCount!==NEXT_WINNER_WAIT_SENTINEL)p.waitCount++});
 
     let leaving=[];
     let winnerReturningTeam=[];
@@ -978,18 +1016,34 @@ async function handleWin(winner){
         }
     }
 
-    leaving.forEach(p=>p.waitCount=0);
-    const available=[...queue];
-    const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));
-    const normalPool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];
+    leaving.forEach(p=>{if(p.waitCount!==NEXT_WINNER_WAIT_SENTINEL)p.waitCount=0});
     const returningIds=new Set(winnerReturningTeam.map(p=>p.id));
-    const candidatePool=gameConfig.winnerReturnsNext&&winnerReturningTeam.length
-        ? [...winnerReturningTeam.filter(p=>p.status==='confirmado'),...normalPool.filter(p=>!returningIds.has(p.id))]
-        : normalPool;
-    const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);
-    teamA=composed.A;teamB=composed.B;queue=composed.remaining;
-    teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);
-    try{await persistAll();render();showConfetti(winner)}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}
+    const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));
+
+    if(gameConfig.winnerReturnsNext&&winnerReturningTeam.length){
+        // Se surgir um novo próximo vencedor, remove a marcação anterior.
+        queue.forEach(p=>{if(p.waitCount===NEXT_WINNER_WAIT_SENTINEL)p.waitCount=0});
+        winnerReturningTeam.forEach(p=>p.waitCount=NEXT_WINNER_WAIT_SENTINEL);
+
+        // O time que venceu duas seguidas sai da quadra e fica na fila,
+        // na primeira posição e identificado. Ele NÃO entra imediatamente
+        // no jogo que está sendo montado agora.
+        const normalPool=[...queue.filter(p=>p.status==='confirmado'&&!returningIds.has(p.id)),...leaving.filter(p=>p.status==='confirmado'&&!returningIds.has(p.id))];
+        const composed=composeTeams(normalPool,teamA,teamB,requiredWomen);
+        teamA=composed.A;teamB=composed.B;
+        queue=[...winnerReturningTeam.filter(p=>p.status==='confirmado'),...composed.remaining];
+    }else{
+        // Com a opção desligada, mantém a rotação normal: os dois times saem
+        // após duas vitórias e todos entram na fila comum.
+        const available=[...queue];
+        const normalPool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];
+        const composed=composeTeams(normalPool,teamA,teamB,requiredWomen);
+        teamA=composed.A;teamB=composed.B;queue=composed.remaining;
+    }
+
+    teamA.forEach(p=>{p.waitCount=0});
+    teamB.forEach(p=>{p.waitCount=0});
+    try{await persistAll();render();showConfetti(winner)}catch(e){console.error('Falha ao sincronizar vitória com Supabase:',e);const detail=[e?.message,e?.details,e?.hint,e?.code].filter(Boolean).join(' | ');alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.'+(detail?'\n\nDetalhes: '+detail:''))}
 }
 async function moveQueue(idx,dir){if(!currentAdmin)return;const target=idx+dir;if(target<0||target>=queue.length)return;[queue[idx],queue[target]]=[queue[target],queue[idx]];try{await persistState();render()}catch(e){[queue[idx],queue[target]]=[queue[target],queue[idx]];alert('Não foi possível salvar a ordem da fila.');console.error(e)}}
 async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha?'))return;players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;try{await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
