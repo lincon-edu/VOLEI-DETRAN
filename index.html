@@ -821,7 +821,7 @@ function render() {
                                 <button class="q-inc-b" title="Incluir no Time B" onclick="addFromQueue(${p.id},'B')" ${teamB.length >= gameConfig.teamSize ? 'disabled' : ''}>+B</button>` : ''}
                                 <button onclick="moveQueue(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>▲</button>
                                 <button onclick="moveQueue(${idx}, 1)" ${idx === queue.length - 1 ? 'disabled' : ''}>▼</button>
-                                <button onclick="removePlayer(${p.id})">✕</button>
+                                <button title="Marcar como ausente" onclick="markAbsent(${p.id})">✕</button>
                             </div>` : ''}
                         </li>
                     `;
@@ -982,6 +982,37 @@ async function togglePresence(id){
     }catch(e){
         p.status=oldStatus;p.confirmed=oldStatus==='confirmado';
         alert('Não foi possível salvar a alteração.');console.error(e);
+    }
+}
+async function markAbsent(id){
+    if(!currentAdmin)return;
+    const p=players.find(x=>x.id===id);
+    if(!p)return;
+    const oldStatus=p.status,oldConfirmed=p.confirmed;
+    const oldQ=queue,oldA=teamA,oldB=teamB;
+    const wasInA=teamA.some(x=>x.id===id);
+    const wasInB=teamB.some(x=>x.id===id);
+    p.status='ausente';p.confirmed=false;p.waitCount=0;
+    queue=queue.filter(x=>x.id!==id);
+    teamA=teamA.filter(x=>x.id!==id);
+    teamB=teamB.filter(x=>x.id!==id);
+    // Se a pessoa estava na quadra, recompõe as vagas com confirmados da fila.
+    if(gameStarted&&(wasInA||wasInB)){
+        const requiredWomen=requiredWomenPerTeam(players.filter(x=>x.status==='confirmado'));
+        const candidates=queue.filter(x=>x.status==='confirmado');
+        const composed=composeTeams(candidates,teamA,teamB,requiredWomen);
+        teamA=composed.A;
+        teamB=composed.B;
+        queue=composed.remaining;
+        teamA.forEach(x=>x.waitCount=0);
+        teamB.forEach(x=>x.waitCount=0);
+    }
+    try{
+        await persistAll();
+        render();
+    }catch(e){
+        p.status=oldStatus;p.confirmed=oldConfirmed;queue=oldQ;teamA=oldA;teamB=oldB;
+        alert('Não foi possível marcar o jogador como ausente.');console.error(e);
     }
 }
 async function removePlayer(id){if(!currentAdmin||!confirm('Remover este jogador?'))return;const old=[players,teamA,teamB,queue].map(x=>[...x]);players=players.filter(p=>p.id!==id);queue=queue.filter(p=>p.id!==id);if(teamA.some(p=>p.id===id)){teamA=teamA.filter(p=>p.id!==id);if(queue.length)teamA.push({...queue.shift(),waitCount:0})}if(teamB.some(p=>p.id===id)){teamB=teamB.filter(p=>p.id!==id);if(queue.length)teamB.push({...queue.shift(),waitCount:0})}try{const {error}=await db.from('jogadores').delete().eq('id',id);if(error)throw error;await persistAll();render()}catch(e){[players,teamA,teamB,queue]=old;alert('Não foi possível remover o jogador.');console.error(e)}}
