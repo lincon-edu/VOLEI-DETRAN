@@ -19,6 +19,15 @@
 --   somente usuários autenticados pelo Supabase Auth
 -- ============================================================
 
+-- ============================================================
+-- ⚠️ BANCO QUE JÁ EXISTE (NÃO rode este arquivo inteiro, ele
+--    apaga os dados!). Rode o arquivo "VOLEI-DETRAN-MIGRACAO.sql"
+--    no SQL Editor. Ele NÃO apaga nada e adiciona o parâmetro
+--    "Vencedor fica até perder" (coluna vencedor_fica_sem_dois_times),
+--    garantindo também a tabela configuracoes_jogo, as políticas e
+--    as permissões - que é o que faz o botão Salvar funcionar.
+-- ============================================================
+
 create extension if not exists pgcrypto;
 
 -- ============================================================
@@ -100,6 +109,34 @@ create table public.estado_jogo (
 );
 
 -- ============================================================
+-- 3.1 TABELA DE CONFIGURAÇÕES DO JOGO
+-- ============================================================
+
+create table public.configuracoes_jogo (
+    id integer primary key
+        check (id = 1),
+
+    -- Jogadores por time.
+    jogadores_por_time integer not null default 4
+        check (jogadores_por_time between 2 and 10),
+
+    -- Mínimo de mulheres por time.
+    minimo_mulheres integer not null default 1
+        check (minimo_mulheres >= 0),
+
+    -- Se ligado: mulheres >= 50% dos confirmados -> mínimo de 2.
+    regra_mulheres_50 boolean not null default true,
+
+    -- Se ligado: quem vence 2 seguidas e sai volta na frente da fila.
+    vencedor_duas_volta_fila boolean not null default false,
+
+    -- Se ligado: sem 2 times completos na fila, o vencedor fica até perder.
+    vencedor_fica_sem_dois_times boolean not null default false,
+
+    updated_at timestamptz not null default now()
+);
+
+-- ============================================================
 -- 4. DADOS INICIAIS
 -- ============================================================
 
@@ -141,6 +178,11 @@ insert into public.estado_jogo
     (id, iniciado, vitorias_time_a, vitorias_time_b, time_a, time_b, fila)
 values
     (1, false, 0, 0, '{}', '{}', '{}');
+
+insert into public.configuracoes_jogo
+    (id, jogadores_por_time, minimo_mulheres, regra_mulheres_50, vencedor_duas_volta_fila, vencedor_fica_sem_dois_times)
+values
+    (1, 4, 1, true, false, false);
 
 -- ============================================================
 -- 5. FUNÇÃO PARA MANTER status E confirmado SINCRONIZADOS
@@ -186,6 +228,7 @@ execute function public.sincronizar_status_jogador();
 
 alter table public.jogadores enable row level security;
 alter table public.estado_jogo enable row level security;
+alter table public.configuracoes_jogo enable row level security;
 
 -- ============================================================
 -- 7. POLICIES DE LEITURA PÚBLICA
@@ -199,6 +242,12 @@ using (true);
 
 create policy "estado_select_public"
 on public.estado_jogo
+for select
+to anon, authenticated
+using (true);
+
+create policy "config_select_public"
+on public.configuracoes_jogo
 for select
 to anon, authenticated
 using (true);
@@ -246,6 +295,25 @@ for delete
 to authenticated
 using (true);
 
+create policy "config_insert_authenticated"
+on public.configuracoes_jogo
+for insert
+to authenticated
+with check (true);
+
+create policy "config_update_authenticated"
+on public.configuracoes_jogo
+for update
+to authenticated
+using (true)
+with check (true);
+
+create policy "config_delete_authenticated"
+on public.configuracoes_jogo
+for delete
+to authenticated
+using (true);
+
 -- ============================================================
 -- 9. GRANTS
 -- ============================================================
@@ -268,12 +336,21 @@ grant select, insert, update, delete
 on public.estado_jogo
 to authenticated;
 
+grant select
+on public.configuracoes_jogo
+to anon, authenticated;
+
+grant select, insert, update, delete
+on public.configuracoes_jogo
+to authenticated;
+
 -- ============================================================
 -- 10. REALTIME
 -- ============================================================
 
 alter table public.jogadores replica identity full;
 alter table public.estado_jogo replica identity full;
+alter table public.configuracoes_jogo replica identity full;
 
 -- Adiciona as tabelas ao Realtime somente se ainda não estiverem
 -- na publicação supabase_realtime.
@@ -298,6 +375,16 @@ begin
     ) then
         alter publication supabase_realtime add table public.estado_jogo;
     end if;
+
+    if not exists (
+        select 1
+        from pg_publication_tables
+        where pubname = 'supabase_realtime'
+          and schemaname = 'public'
+          and tablename = 'configuracoes_jogo'
+    ) then
+        alter publication supabase_realtime add table public.configuracoes_jogo;
+    end if;
 end
 $$;
 
@@ -314,9 +401,9 @@ begin
       from public.jogadores
      where status = 'confirmado';
 
-    if total_confirmados > 30 then
+    if total_confirmados > 40 then
         raise exception
-            'O banco possui % jogadores confirmados. O limite é 30.',
+            'O banco possui % jogadores confirmados. O limite é 40.',
             total_confirmados;
     end if;
 end

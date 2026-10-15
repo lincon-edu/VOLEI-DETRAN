@@ -18,7 +18,7 @@ sincronização entre os dispositivos.
 ### 👥 Lista de jogadores
 
 -   Lista com até **40 jogadores**.
--   Limite de **30 jogadores confirmados**.
+-   Limite de **40 jogadores confirmados**.
 -   Cada jogador possui sexo:
     -   `M` --- Masculino
     -   `F` --- Feminino
@@ -97,6 +97,13 @@ A regra atual de rotação é:
     -   regra de mulheres;
     -   ordem atual da fila.
 
+> **Parâmetro "Vencedor fica até perder"** (opcional, na aba de
+> configurações): quando ligado e a fila de espera **não** tiver
+> jogadores suficientes para formar **2 times completos**, o time vencedor
+> permanece em quadra **sem limite de vitórias**, até perder. Assim que a
+> fila tiver 2 times completos esperando, a regra normal (item 5) volta a
+> valer. Use quando o vencedor puder emendar várias vitórias seguidas.
+
 ### 📊 Resenha
 
 A aba **Resenha** apresenta o ranking dos jogadores com:
@@ -109,14 +116,24 @@ A aba **Resenha** apresenta o ranking dos jogadores com:
 
 ### 🔐 Autenticação
 
-O acesso administrativo utiliza **Supabase Authentication**.
+O acesso administrativo aceita **dois modos de login**:
 
-Não existe mais uma lista de usuários e senhas administrativos gravada
-diretamente no código da aplicação.
+1.  **ADMs cadastrados diretamente no código** (login pelo nome):
 
-O administrador precisa estar cadastrado no:
+    | Nome | Senha |
+    | --- | --- |
+    | Glauber | `mestre` |
+    | Joao | `gordonobordo` |
+    | Bruno | `cucurelha` |
 
-**Supabase → Authentication → Users**
+    Para usar, entre com o **nome** (Glauber, Joao ou Bruno) e a **senha**
+    correspondente no modal de login.
+
+2.  **Supabase Authentication** (login pelo e-mail):
+
+    O administrador também pode entrar com um e-mail cadastrado no:
+
+    **Supabase → Authentication → Users**
 
 Usuários não autenticados podem acompanhar as informações públicas da
 partida, enquanto as operações administrativas ficam disponíveis somente
@@ -142,15 +159,23 @@ VOLEI-DETRAN/
 │
 ├── index.html
 ├── README.md
-├── VOLEI-DETRAN-SUPABASE-FINAL.sql
-├── VOLEI-DETRAN-STATUS-MIGRATION.sql
+├── VOLEI-DETRAN-SUPABASE.sql
+├── VOLEI-DETRAN-MIGRACAO.sql
+├── CNAME
 └── LICENSE
 ```
 
 O `index.html` é a aplicação principal.
 
 Os arquivos SQL são utilizados para criação e atualização da estrutura
-do banco de dados no Supabase.
+do banco de dados no Supabase:
+
+-   `VOLEI-DETRAN-SUPABASE.sql` → instalação **nova** (cria tudo do
+    zero; **apaga** dados existentes).
+-   `VOLEI-DETRAN-MIGRACAO.sql` → banco que **já existe** (não apaga
+    nada; adiciona as colunas novas, políticas e permissões da tabela
+    `configuracoes_jogo`). Rode este se o botão **Salvar** das
+    configurações não estiver funcionando.
 
 ------------------------------------------------------------------------
 
@@ -180,18 +205,45 @@ Crie um projeto no Supabase.
 Depois execute o SQL de estrutura inicial:
 
 ``` text
-VOLEI-DETRAN-SUPABASE-FINAL.sql
+VOLEI-DETRAN-SUPABASE.sql
 ```
 
 no:
 
 **Supabase → SQL Editor**
 
+> Se o banco **já existia** de uma versão anterior, **não** rode o
+> arquivo acima (ele apaga os dados). Rode apenas
+> `VOLEI-DETRAN-MIGRACAO.sql`, que adiciona as colunas, políticas e
+> permissões sem apagar nada — inclusive a coluna
+> `vencedor_fica_sem_dois_times` e as políticas de escrita que fazem o
+> botão **Salvar** funcionar.
+
 ------------------------------------------------------------------------
 
 ## 2. Criar os administradores
 
-No Supabase:
+Já existem **ADMs cadastrados no próprio código** (não usam Supabase Auth):
+
+| Nome | Senha |
+| --- | --- |
+| Glauber | `mestre` |
+| Joao | `gordonobordo` |
+| Bruno | `cucurelha` |
+
+Para **adicionar/remover ADMs no código**, edite a lista `ADMINS` no
+`index.html`:
+
+``` javascript
+const ADMINS=[
+    {nome:'glauber',senha:'mestre'},
+    {nome:'joao',senha:'gordonobordo'},
+    {nome:'bruno',senha:'cucurelha'}
+];
+```
+
+Opcionalmente, é possível cadastrar **outros administradores** no Supabase
+Auth (login por e-mail):
 
 ``` text
 Authentication
@@ -201,10 +253,12 @@ Users
 Add user
 ```
 
-Cadastre o e-mail e a senha dos administradores.
+Cadastre o e-mail e a senha dos administradores do Supabase.
 
-As credenciais não devem ser colocadas no README nem armazenadas
-diretamente no JavaScript.
+> Observação: as senhas dos ADMs cadastrados no código ficam visíveis
+> para qualquer pessoa que tenha acesso ao `index.html` (frontend).
+> Por isso, prefira o login por Supabase Auth quando precisar de mais
+> segurança.
 
 ------------------------------------------------------------------------
 
@@ -335,7 +389,7 @@ Os jogadores continuam cadastrados na lista.
   Regra                                                 Valor
   --------------------------------- -------------------------
   Máximo de jogadores cadastrados                          40
-  Máximo de confirmados                                    30
+  Máximo de confirmados                                    40
   Jogadores por time                                        4
   Mínimo de mulheres por time                               1
   Mulheres ≥ 50%                                   2 por time
@@ -349,8 +403,7 @@ Os jogadores continuam cadastrados na lista.
 
 ### 🎛️ Configuração geral
 
-A ideia é futuramente transformar as regras atualmente fixas no código
-em configurações administráveis:
+As regras podem ser ajustadas pelo administrador na aba de configurações:
 
 ``` text
 Configurações da partida
@@ -363,10 +416,13 @@ Mulheres ≥ 50%:           [ 2 ]
 
 Time que vence 2x volta
 como próximo:             [ OFF ]
+
+Vencedor fica até perder
+(se não houver 2 times):  [ OFF ]
 ```
 
-Assim, o administrador poderá adaptar a aplicação para diferentes
-formatos de partidas sem precisar alterar o código.
+Assim, o administrador pode adaptar a aplicação para diferentes formatos
+de partidas sem precisar alterar o código.
 
 ------------------------------------------------------------------------
 
@@ -383,7 +439,7 @@ Posteriormente foram adicionados:
 4.  Ranking e histórico de partidas.
 5.  Controle de status dos jogadores.
 6.  Suporte para até 40 jogadores cadastrados.
-7.  Limite de 30 jogadores confirmados.
+7.  Limite de 40 jogadores confirmados.
 8.  Controle manual da fila de espera.
 9.  Regras de composição dos times considerando a quantidade de
     mulheres.
