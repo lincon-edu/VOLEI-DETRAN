@@ -375,11 +375,11 @@ security definer
 set search_path = public, extensions
 as $$
     select coalesce(jsonb_agg(jsonb_build_object(
-        'username', x.username, 'saldo', x.saldo, 'apostas', x.apostas,
+        'id', x.id, 'username', x.username, 'saldo', x.saldo, 'apostas', x.apostas,
         'vitorias', x.vitorias, 'derrotas', x.derrotas, 'lucro', round(x.saldo - 50.00, 2)
     ) order by x.saldo desc, x.username), '[]'::jsonb)
     from (
-        select a.username, a.saldo,
+        select a.id, a.username, a.saldo,
                count(b.id)::integer as apostas,
                count(b.id) filter (where b.status = 'ganhou')::integer as vitorias,
                count(b.id) filter (where b.status = 'perdeu')::integer as derrotas
@@ -387,6 +387,75 @@ as $$
          group by a.id, a.username, a.saldo
     ) x;
 $$;
+
+-- Operações administrativas de carteira. Exigem sessão Supabase Auth válida.
+-- Apenas contas autenticadas devem ser disponibilizadas para administradores.
+create or replace function public.admin_resetar_apostador(p_apostador_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+    v_username text;
+begin
+    if auth.uid() is null then
+        raise exception 'Ação administrativa exige login ADM autenticado pelo Supabase Auth.';
+    end if;
+    select username into v_username
+      from public.apostadores
+     where id = p_apostador_id
+     for update;
+    if not found then raise exception 'Apostador não encontrado.'; end if;
+
+    -- Limpa o histórico individual e redefine a carteira de forma atômica.
+    delete from public.apostas where apostador_id = p_apostador_id;
+    update public.apostadores set saldo = 50.00 where id = p_apostador_id;
+
+    return jsonb_build_object('ok', true, 'apostador_id', p_apostador_id,
+                              'username', v_username, 'saldo', 50.00);
+end;
+$$;
+
+create or replace function public.admin_definir_saldo_apostador(
+    p_apostador_id uuid,
+    p_novo_saldo numeric
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+    v_username text;
+    v_saldo numeric(12,2);
+begin
+    if auth.uid() is null then
+        raise exception 'Ação administrativa exige login ADM autenticado pelo Supabase Auth.';
+    end if;
+    if p_novo_saldo is null or p_novo_saldo < 0 or p_novo_saldo > 1000000000 then
+        raise exception 'O saldo deve estar entre R$ 0,00 e R$ 1.000.000.000,00.';
+    end if;
+    select username into v_username
+      from public.apostadores
+     where id = p_apostador_id
+     for update;
+    if not found then raise exception 'Apostador não encontrado.'; end if;
+
+    update public.apostadores
+       set saldo = round(p_novo_saldo, 2)
+     where id = p_apostador_id
+     returning saldo into v_saldo;
+
+    return jsonb_build_object('ok', true, 'apostador_id', p_apostador_id,
+                              'username', v_username, 'saldo', v_saldo);
+end;
+$$;
+
+revoke all on function public.admin_resetar_apostador(uuid) from public, anon;
+revoke all on function public.admin_definir_saldo_apostador(uuid,numeric) from public, anon;
+grant execute on function public.admin_resetar_apostador(uuid) to authenticated;
+grant execute on function public.admin_definir_saldo_apostador(uuid,numeric) to authenticated;
 
 revoke all on function public.registrar_apostador(text,text) from public;
 revoke all on function public.login_apostador(text,text) from public;
