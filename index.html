@@ -101,6 +101,11 @@
         .bet-history-row:last-child{border-bottom:0}.bet-win{color:#5FE38C}.bet-loss{color:#FF8A8A}
         .bet-rank-item{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--line);font-size:12px;}
         .bet-rank-item:last-child{border-bottom:0}.bet-rank-pos{width:27px;height:27px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-weight:900;color:var(--lime);flex-shrink:0;}
+        .bet-rank-main{display:flex;align-items:center;gap:10px;min-width:0;flex:1;}
+        .bet-rank-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+        .bet-rank-actions button{border-radius:7px;padding:6px 8px;font-size:10px;font-weight:800;cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);}
+        .bet-rank-actions .bet-admin-reset{border-color:rgba(245,158,11,.45);color:#FBBF24;background:rgba(245,158,11,.10);}
+        .bet-rank-actions .bet-admin-balance{border-color:rgba(59,130,246,.45);color:#9EC5FF;background:rgba(59,130,246,.10);}
         @media(max-width:380px){.header-actions{gap:4px}.header button{font-size:9px;padding:7px 7px}.brand-mark{width:29px;height:29px}.brand-title{font-size:12px}.bet-grid{gap:6px}.bet-side{padding:8px}.bet-odd{font-size:20px}}
         .btn-settings:hover { border-color: rgba(185,255,61,.45) !important; color: var(--lime); }
         .settings-group { margin-bottom:14px; }
@@ -1209,7 +1214,62 @@ async function closeBettingMatch(winner){if(!currentBetMatch)return;const partid
 async function cancelBettingMatch(){if(!currentBetMatch)return;const {data,error}=await db.from('partidas_apostas').update({status:'cancelada'}).eq('id',currentBetMatch.id).eq('status','aberta').select('id').maybeSingle();if(error)throw error;if(!data)throw new Error('O banco não confirmou o cancelamento da partida.');currentBetMatch=null;await refreshBettorData()}
 async function placeBet(side){if(!currentBettorToken){openBettorModal();return}if(!currentBetMatch){alert('Não há partida aberta para apostar.');return}const input=document.getElementById('bet-amount-'+side),amount=Number(input?.value);if(!Number.isFinite(amount)||amount<=0){alert('Informe um valor maior que zero.');return}try{const {data,error}=await db.rpc('apostar_partida',{p_token:currentBettorToken,p_partida_id:currentBetMatch.id,p_lado:side,p_valor:Math.round(amount*100)/100});if(error)throw error;if(!data?.ok)throw new Error(data?.message||'A aposta não foi registrada.');await refreshBettorData();renderBettingUI();alert(`Aposta registrada no Time ${side}. Saldo: R$ ${Number(data.saldo).toFixed(2)}`)}catch(e){console.error(e);const msg=String(e.message||e);if(msg.toLowerCase().includes('unique')||msg.toLowerCase().includes('já apostou'))alert('Você já apostou nesse time nesta partida.');else alert('Não foi possível registrar a aposta: '+msg)}}
 function money(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
-function renderBettingUI(){renderBettingCard();const rankEl=document.getElementById('betting-ranking');if(rankEl){if(!bettingRanking.length)rankEl.innerHTML='<div class="empty-state">Ainda não há apostadores cadastrados.</div>';else rankEl.innerHTML=bettingRanking.map((r,i)=>`<div class="bet-rank-item"><span class="bet-rank-pos">${i+1}</span><div style="flex:1;min-width:0"><b>${escapeHtml(r.username)}</b><div style="color:var(--muted);margin-top:3px">${r.apostas} apostas · ${r.vitorias} acertos</div></div><b style="color:${Number(r.saldo)>=50?'var(--lime)':'#FF8A8A'}">${money(r.saldo)}</b></div>`).join('')}const histEl=document.getElementById('betting-history');if(histEl){if(!currentBettor)histEl.innerHTML='<div class="bet-login-cta">Entre como USER para consultar seu histórico de apostas.</div>';else if(!myBetHistory.length)histEl.innerHTML='<div class="empty-state">Você ainda não fez apostas.</div>';else histEl.innerHTML=myBetHistory.slice(0,30).map(b=>`<div class="bet-history-row"><div><b>Partida #${b.partida_id} · Time ${b.lado}</b><div style="color:var(--muted);margin-top:3px">Aposta ${money(b.valor)} · ODD ${Number(b.odd).toFixed(2)}x</div></div><div style="text-align:right"><b class="${b.status==='ganhou'?'bet-win':b.status==='perdeu'?'bet-loss':''}">${b.status==='pendente'?'Pendente':b.status==='ganhou'?'Ganhou':b.status==='perdeu'?'Perdeu':'Cancelada'}</b><div style="margin-top:3px">${money(b.retorno)}</div></div></div>`).join('')}}
+function renderBettingUI(){
+    renderBettingCard();
+    const rankEl=document.getElementById('betting-ranking');
+    if(rankEl){
+        if(!bettingRanking.length){rankEl.innerHTML='<div class="empty-state">Ainda não há apostadores cadastrados.</div>';}
+        else {
+            const isAdmin=currentAdmin!==null;
+            rankEl.innerHTML=bettingRanking.map((r,i)=>`<div class="bet-rank-item">
+                <span class="bet-rank-pos">${i+1}</span>
+                <div style="flex:1;min-width:0">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                        <div style="min-width:0"><b>${escapeHtml(r.username)}</b><div style="color:var(--muted);margin-top:3px">${r.apostas} apostas · ${r.vitorias} acertos</div></div>
+                        <b style="white-space:nowrap;color:${Number(r.saldo)>=50?'var(--lime)':'#FF8A8A'}">${money(r.saldo)}</b>
+                    </div>
+                    ${isAdmin?`<div class="bet-rank-actions"><button class="bet-admin-balance" onclick="adminEditBettorBalance('${r.id}','${escapeHtml(r.username)}',${Number(r.saldo)||0})">✏️ Alterar saldo</button><button class="bet-admin-reset" onclick="adminResetBettor('${r.id}','${escapeHtml(r.username)}')">↻ Limpar histórico + R$ 50</button></div>`:''}
+                </div>
+            </div>`).join('');
+        }
+    }
+    const histEl=document.getElementById('betting-history');
+    if(histEl){if(!currentBettor)histEl.innerHTML='<div class="bet-login-cta">Entre como USER para consultar seu histórico de apostas.</div>';else if(!myBetHistory.length)histEl.innerHTML='<div class="empty-state">Você ainda não fez apostas.</div>';else histEl.innerHTML=myBetHistory.slice(0,30).map(b=>`<div class="bet-history-row"><div><b>Partida #${b.partida_id} · Time ${b.lado}</b><div style="color:var(--muted);margin-top:3px">Aposta ${money(b.valor)} · ODD ${Number(b.odd).toFixed(2)}x</div></div><div style="text-align:right"><b class="${b.status==='ganhou'?'bet-win':b.status==='perdeu'?'bet-loss':''}">${b.status==='pendente'?'Pendente':b.status==='ganhou'?'Ganhou':b.status==='perdeu'?'Perdeu':'Cancelada'}</b><div style="margin-top:3px">${money(b.retorno)}</div></div></div>`).join('')}
+}
+async function adminResetBettor(id,username){
+    if(!currentAdmin)return;
+    if(!id || id==='undefined' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id))){alert('O ranking não trouxe o UUID deste apostador. Execute a migração SQL atualizada (função ranking_apostadores) no Supabase e atualize a página. Nenhuma alteração foi feita.');console.error('UUID ausente/inválido no ranking:',{id,username});return;}
+
+    if(!confirm(`Limpar todo o histórico de apostas de ${username} e redefinir a carteira para R$ 50,00? Essa ação não pode ser desfeita.`))return;
+    try{
+        const {data,error}=await db.rpc('admin_resetar_apostador',{p_apostador_id:id});
+        if(error)throw error;
+        if(!data?.ok)throw new Error(data?.message||'O banco não confirmou a redefinição.');
+        await refreshBettingRanking();
+        if(currentBettor&&String(currentBettor.id)===String(id))await refreshBettorData();
+        renderBettingUI();
+        alert(`Histórico de ${username} limpo e saldo redefinido para R$ 50,00.`);
+    }catch(e){console.error(e);alert('Não foi possível limpar o histórico. Se entrou com um ADM local, entre usando uma conta administrativa autenticada pelo Supabase Auth. Detalhe: '+(e.message||e));}
+}
+async function adminEditBettorBalance(id,username,currentBalance){
+    if(!currentAdmin)return;
+    if(!id || id==='undefined' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id))){alert('O ranking não trouxe o UUID deste apostador. Execute a migração SQL atualizada (função ranking_apostadores) no Supabase e atualize a página. Nenhuma alteração foi feita.');console.error('UUID ausente/inválido no ranking:',{id,username});return;}
+
+    const raw=prompt(`Novo saldo fictício para ${username} (saldo atual: ${money(currentBalance)}):`,Number(currentBalance).toFixed(2));
+    if(raw===null)return;
+    const normalized=raw.trim().replace(/\s/g,'').replace(',','.');
+    const saldo=Number(normalized);
+    if(!Number.isFinite(saldo)||saldo<0||saldo>1000000000){alert('Informe um saldo válido entre R$ 0,00 e R$ 1.000.000.000,00.');return;}
+    try{
+        const {data,error}=await db.rpc('admin_definir_saldo_apostador',{p_apostador_id:id,p_novo_saldo:Math.round(saldo*100)/100});
+        if(error)throw error;
+        if(!data?.ok)throw new Error(data?.message||'O banco não confirmou a alteração.');
+        await refreshBettingRanking();
+        if(currentBettor&&String(currentBettor.id)===String(id))await refreshBettorData();
+        renderBettingUI();
+        alert(`Saldo de ${username} atualizado para ${money(saldo)}.`);
+    }catch(e){console.error(e);alert('Não foi possível alterar o saldo. Se entrou com um ADM local, entre usando uma conta administrativa autenticada pelo Supabase Auth. Detalhe: '+(e.message||e));}
+}
 function renderBettingCard(){const content=document.getElementById('betting-content');if(!content)return;const badge=document.getElementById('bet-time-left');const open=!!currentBetMatch&&currentBetMatch.status==='aberta'&&new Date(currentBetMatch.closes_at).getTime()>Date.now();if(!gameStarted||!currentBetMatch){if(badge)badge.innerText='Aguardando partida';content.innerHTML=currentBettor?`<div class="bet-balance"><span>Saldo de ${escapeHtml(currentBettor.username)}</span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-login-cta">As apostas aparecem quando uma partida começar.</div>`:'<div class="bet-login-cta">Entre como USER para receber R$ 50,00 fictícios e apostar durante o primeiro minuto de cada partida.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>';return}const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));if(badge)badge.innerText=open?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(!currentBettor){content.innerHTML=`<div class="bet-login-cta">ODD Time A: <b>${Number(currentBetMatch.odd_a).toFixed(2)}x</b> · Time B: <b>${Number(currentBetMatch.odd_b).toFixed(2)}x</b><br>Você tem 1 minuto após o início da partida para apostar.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>`;return}const betA=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='A'),betB=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='B');content.innerHTML=`<div class="bet-balance"><span>Saldo fictício de <b>${escapeHtml(currentBettor.username)}</b></span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-grid"><div class="bet-side a"><div class="bet-side-title">🔵 TIME A</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_a).toFixed(2)}x</div>${betA?`<div class="bet-note">Você apostou ${money(betA.valor)}.</div>`:`<input id="bet-amount-A" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('A')" ${!open?'disabled':''}>APOSTAR NO A</button>`}</div><div class="bet-side b"><div class="bet-side-title">🔴 TIME B</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_b).toFixed(2)}x</div>${betB?`<div class="bet-note">Você apostou ${money(betB.valor)}.</div>`:`<input id="bet-amount-B" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('B')" ${!open?'disabled':''}>APOSTAR NO B</button>`}</div></div><div class="bet-note">Créditos fictícios, sem dinheiro real. A aposta é descontada do saldo imediatamente. Se acertar, o retorno será valor apostado × ODD; se errar, perde o valor apostado. O prazo é controlado pelo banco.</div>`}
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updateBetCountdown(){if(!currentBetMatch)return;const badge=document.getElementById('bet-time-left');if(!badge)return;const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));badge.innerText=remaining>0?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(remaining===0){document.querySelectorAll('#betting-content .bet-side input,#betting-content .bet-side button').forEach(el=>el.disabled=true)}}
