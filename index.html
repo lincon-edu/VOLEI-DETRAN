@@ -80,8 +80,28 @@
             white-space: nowrap;
         }
         .btn-auth { background: rgba(185,255,61,.12); color: var(--lime); border: 1px solid rgba(185,255,61,.45) !important; }
+        .btn-user { background: rgba(59,130,246,.14); color:#9EC5FF; border:1px solid rgba(59,130,246,.5) !important; }
         .btn-danger { background: rgba(255,77,77,.14); color: #ff8a8a; border: 1px solid rgba(255,77,77,.45) !important; }
         .btn-settings { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--line) !important; display:none; font-size:16px !important; padding:7px 10px !important; }
+        .bet-content{padding:12px;}
+        .bet-balance{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:rgba(185,255,61,.08);border:1px solid rgba(185,255,61,.25);border-radius:11px;margin-bottom:12px;font-size:12px;}
+        .bet-balance strong{font-family:'Archivo Black',sans-serif;color:var(--lime);font-size:18px;}
+        .bet-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+        .bet-side{padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);min-width:0;}
+        .bet-side.a{border-color:rgba(59,130,246,.45)} .bet-side.b{border-color:rgba(255,77,77,.45)}
+        .bet-side-title{font-weight:900;font-size:12px;margin-bottom:4px;}
+        .bet-odd{font-family:'Archivo Black',sans-serif;font-size:23px;margin:5px 0 10px;}
+        .bet-side.a .bet-odd{color:#9EC5FF}.bet-side.b .bet-odd{color:#FFAFAF}
+        .bet-side input{width:100%;padding:10px 8px;margin:0 0 8px;background:#0B1224;border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:14px;}
+        .bet-side button{width:100%;padding:10px 6px;border:0;border-radius:9px;font-weight:900;font-size:11px;cursor:pointer;background:var(--lime);color:#0A1120;}
+        .bet-side.b button{background:#FF8A8A}.bet-side button:disabled{opacity:.4;cursor:default;}
+        .bet-note{font-size:11px;color:var(--muted);line-height:1.45;margin-top:10px;}
+        .bet-login-cta{padding:12px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5;}
+        .bet-history-row{display:flex;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid var(--line);font-size:12px;}
+        .bet-history-row:last-child{border-bottom:0}.bet-win{color:#5FE38C}.bet-loss{color:#FF8A8A}
+        .bet-rank-item{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--line);font-size:12px;}
+        .bet-rank-item:last-child{border-bottom:0}.bet-rank-pos{width:27px;height:27px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-weight:900;color:var(--lime);flex-shrink:0;}
+        @media(max-width:380px){.header-actions{gap:4px}.header button{font-size:9px;padding:7px 7px}.brand-mark{width:29px;height:29px}.brand-title{font-size:12px}.bet-grid{gap:6px}.bet-side{padding:8px}.bet-odd{font-size:20px}}
         .btn-settings:hover { border-color: rgba(185,255,61,.45) !important; color: var(--lime); }
         .settings-group { margin-bottom:14px; }
         .settings-label { display:flex; justify-content:space-between; gap:10px; align-items:center; font-size:12px; font-weight:800; color:var(--text); margin-bottom:7px; }
@@ -474,6 +494,7 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button id="btn-user" class="btn-user">🎲 Entrar USER</button>
                 <button id="btn-login" class="btn-auth">🔑 Entrar ADM</button>
                 <button id="btn-reset" class="btn-danger" style="display:none;">Reiniciar</button>
                 <button id="btn-settings" class="btn-settings" style="display:none;" title="Configurações do jogo">⚙️</button>
@@ -540,6 +561,11 @@
                 </div>
             </div>
 
+            <div class="card" id="betting-card">
+                <div class="card-header"><span>🎲 Apostas fictícias</span><span class="hint" id="bet-time-left">Aguardando partida</span></div>
+                <div id="betting-content" class="bet-content"></div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <span>⏳ Fila de Espera</span>
@@ -558,6 +584,14 @@
                 </div>
                 <div id="resenha-podium"></div>
                 <ul id="resenha-list"></ul>
+            </div>
+            <div class="card">
+                <div class="card-header"><span>🎲 Ranking dos apostadores</span><span class="hint">Saldo fictício</span></div>
+                <div id="betting-ranking"><div class="empty-state">Carregando ranking...</div></div>
+            </div>
+            <div class="card" id="betting-history-card">
+                <div class="card-header"><span>📜 Meu histórico de apostas</span></div>
+                <div id="betting-history"><div class="empty-state">Entre como usuário para ver seu histórico.</div></div>
             </div>
         </div>
 
@@ -579,6 +613,24 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeLoginModal()">Cancelar</button>
                 <button class="btn-ok" onclick="loginAdmin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE LOGIN / CADASTRO DE APOSTADOR -->
+    <div class="modal" id="bettor-modal">
+        <div class="modal-body">
+            <h3 id="bettor-modal-title">🎲 Acesso USER</h3>
+            <div class="modal-sub" id="bettor-modal-sub">Entre ou crie seu usuário para apostar com créditos fictícios. Sem dinheiro real.</div>
+            <div style="display:flex;gap:7px;margin-bottom:12px;">
+                <button class="btn-cancel" id="bettor-mode-login" onclick="setBettorMode('login')" style="flex:1;">Entrar</button>
+                <button class="btn-cancel" id="bettor-mode-register" onclick="setBettorMode('register')" style="flex:1;">Criar login</button>
+            </div>
+            <input type="text" id="bettor-username" placeholder="Login (3 a 24 caracteres)" autocomplete="username" maxlength="24">
+            <input type="password" id="bettor-password" placeholder="Senha (mínimo 6 caracteres)" autocomplete="current-password">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeBettorModal()">Cancelar</button>
+                <button class="btn-ok" id="bettor-submit" onclick="submitBettorAuth()">Entrar</button>
             </div>
         </div>
     </div>
@@ -645,8 +697,8 @@ const SUPABASE_URL='https://oxacdamrkrokzocamvfw.supabase.co';
 const SUPABASE_KEY='sb_publishable_uusWwV0ef8ux-Dr__IFlPA_WGwQpAqO';
 const {createClient}=supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentAdmin=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0,pendingWinner=null;
-let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false,configMissingNewColumn=false;
+let currentAdmin=null,currentBettor=null,currentBettorToken=null,bettorMode='login',myBetHistory=[],bettingRanking=[],currentBetMatch=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0,pendingWinner=null;
+let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false,configMissingNewColumn=false,bettingTick=null;
 let gameConfig={teamSize:4,minWomen:1,autoWomen50:true,winnerReturnsNext:false,winnerStays:false};
 const jogadoresIniciais=[['Victor','M'],['Joao V','M'],['Glauber','M'],['Lucas','M'],['Mateus','M'],['Gabriel','M'],['Rafael','M'],['João','M'],['Pedro','M'],['Tiago','M'],['Marcos','M'],['André','M'],['Felipe','M'],['Carlos','M'],['Eduardo','M'],['Marcelo','M'],['Gustavo','M'],['Fernando','M'],['Bruno','M'],['Diego','M'],['Leonardo','M'],['Thiago','M'],['Rodrigo','M'],['Ana','F'],['Julia','F'],['Beatriz','F'],['Mariana','F'],['Camila','F'],['Letícia','F'],['Amanda','F']];
 function mapPlayer(r){
@@ -661,7 +713,7 @@ async function persistState(){const {error}=await db.from('estado_jogo').upsert(
 async function persistConfig(){let {error}=await db.from('configuracoes_jogo').upsert(configPayload(),{onConflict:'id'});if(error&&/vencedor_fica_sem_dois_times/.test(error.message||'')){const legacy=configPayload();delete legacy.vencedor_fica_sem_dois_times;const r=await db.from('configuracoes_jogo').upsert(legacy,{onConflict:'id'});if(r.error)throw r.error;configMissingNewColumn=true;return}if(error)throw error;configMissingNewColumn=false}
 function syncWaitCounts(){const counts=new Map();queue.forEach(p=>counts.set(p.id,p.waitCount));teamA.forEach(p=>counts.set(p.id,p.waitCount));teamB.forEach(p=>counts.set(p.id,p.waitCount));players.forEach(p=>{if(counts.has(p.id))p.waitCount=counts.get(p.id);else p.waitCount=0})}
 async function persistAll(){syncWaitCounts();await Promise.all([persistPlayers(),persistState()])}
-function setupRealtime(){db.channel('volei-detran-sync').on('postgres_changes',{event:'*',schema:'public',table:'jogadores'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'estado_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'configuracoes_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).subscribe()}
+function setupRealtime(){db.channel('volei-detran-sync').on('postgres_changes',{event:'*',schema:'public',table:'jogadores'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'estado_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'configuracoes_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'partidas_apostas'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(async()=>{await loadCurrentBetMatch();renderBettingUI()},250)}).subscribe()}
 
 function showConfetti(side){
     const box=document.getElementById('confetti');
@@ -696,6 +748,19 @@ function render() {
                 btnLogin.title = 'Acesso administrativo';
                 btnLogin.onclick = openLoginModal;
                 btnLogin.className = 'btn-auth';
+            }
+
+            const btnUser = document.getElementById('btn-user');
+            if (currentBettor) {
+                btnUser.innerText = `🎲 ${currentBettor.username}`;
+                btnUser.title = `Saldo fictício: R$ ${Number(currentBettor.saldo || 0).toFixed(2)}`;
+                btnUser.onclick = logoutBettor;
+                btnUser.className = 'btn-user';
+            } else {
+                btnUser.innerText = '🎲 Entrar USER';
+                btnUser.title = 'Login ou cadastro para apostas fictícias';
+                btnUser.onclick = openBettorModal;
+                btnUser.className = 'btn-user';
             }
 
             const btnReset = document.getElementById('btn-reset');
@@ -884,6 +949,7 @@ function render() {
                     </li>
                 `;
             });
+            renderBettingUI();
         }
 
         function switchTab(t){currentTab=t;document.getElementById('tab-lista').style.display=t==='lista'?'block':'none';document.getElementById('tab-quadra').style.display=t==='quadra'?'block':'none';document.getElementById('tab-resenha').style.display=t==='resenha'?'block':'none';document.getElementById('btn-tab-lista').className='tab-btn'+(t==='lista'?' active':'');document.getElementById('btn-tab-quadra').className='tab-btn'+(t==='quadra'?' active':'');document.getElementById('btn-tab-resenha').className='tab-btn'+(t==='resenha'?' active':'')}
@@ -1019,6 +1085,8 @@ async function removePlayer(id){if(!currentAdmin||!confirm('Remover este jogador
 // A ordem da fila exibida na tela é a prioridade real de entrada.
 // A regra de sexo vem primeiro; dentro dela, respeitamos exatamente a ordem da fila.
 function takeBestWoman(pool){const idx=pool.findIndex(p=>p.sex==='F');if(idx===-1)return null;return pool.splice(idx,1)[0]}
+function takeBestMan(pool){const idx=pool.findIndex(p=>p.sex==='M');if(idx===-1)return null;return pool.splice(idx,1)[0]}
+function takeNextPlayer(pool){return takeBestMan(pool)||pool.shift()||null}
 function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
     // NÃO ordenar por waitCount/queueOrder: a fila pode ser reordenada manualmente pelo ADM.
     // Portanto, pool[0] é sempre o primeiro da fila.
@@ -1035,15 +1103,19 @@ function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
     // Primeiro garante a quantidade mínima de mulheres em cada time.
     fillRequiredWomen(A);
     fillRequiredWomen(B);
-    // Depois, preenche todas as vagas restantes seguindo a ordem atual da fila.
-    while(A.length<gameConfig.teamSize&&available.length)A.push(available.shift());
-    while(B.length<gameConfig.teamSize&&available.length)B.push(available.shift());
+    // Depois do mínimo obrigatório, prioriza homens em todas as vagas restantes.
+    while(A.length<gameConfig.teamSize&&available.length){const p=takeNextPlayer(available);if(p)A.push(p)}
+    while(B.length<gameConfig.teamSize&&available.length){const p=takeNextPlayer(available);if(p)B.push(p)}
     return{A,B,remaining:available};
 }
-async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<gameConfig.teamSize*2){alert(`É necessário pelo menos ${gameConfig.teamSize*2} confirmados para iniciar com times de ${gameConfig.teamSize}.`);return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;pendingWinner=null;try{await persistAll();render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
+async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<gameConfig.teamSize*2){alert(`É necessário pelo menos ${gameConfig.teamSize*2} confirmados para iniciar com times de ${gameConfig.teamSize}.`);return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;pendingWinner=null;try{await persistAll();try{await openBettingMatch()}catch(betError){console.error('Não foi possível abrir as apostas:',betError);alert('O jogo começou, mas as apostas não foram habilitadas. Verifique se a migração SQL de apostas foi executada e se o ADM entrou pelo Supabase Auth.')}render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
 async function handleWin(winner){
     if(!currentAdmin||!gameStarted)return;
     pendingWinner=null;
+    if(currentBetMatch){
+        try{await closeBettingMatch(winner)}
+        catch(e){console.error('Falha ao encerrar apostas:',e);alert('Não foi possível encerrar e liquidar as apostas desta partida. A vitória não foi processada; confira o Supabase e tente novamente.');return}
+    }
     teamA.forEach(p=>{p.matches++;if(winner==='A')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});
     teamB.forEach(p=>{p.matches++;if(winner==='B')p.wins++;const m=players.find(x=>x.id===p.id);if(m){m.matches=p.matches;m.wins=p.wins}});
     queue.forEach(p=>p.waitCount++);
@@ -1084,7 +1156,7 @@ async function handleWin(winner){
     const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);
     teamA=composed.A;teamB=composed.B;queue=composed.remaining;
     teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);
-    try{await persistAll();render();showConfetti(winner)}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}
+    try{await persistAll();try{await openBettingMatch()}catch(betError){console.error('Não foi possível abrir apostas para a próxima partida:',betError)}render();showConfetti(winner)}catch(e){alert('A vitória foi processada, mas não foi possível sincronizar com o Supabase.');console.error(e)}
 }
 function selectWinner(side){if(!currentAdmin||!gameStarted)return;pendingWinner=side;render()}
 function cancelWinner(){pendingWinner=null;render()}
@@ -1113,8 +1185,35 @@ async function addFromQueue(id,side){
     try{await persistAll();render()}catch(e){[players,teamA,teamB,queue]=old;alert('Não foi possível atualizar o time.');console.error(e)}
 }
 async function moveQueue(idx,dir){if(!currentAdmin)return;const target=idx+dir;if(target<0||target>=queue.length)return;[queue[idx],queue[target]]=[queue[target],queue[idx]];try{await persistState();render()}catch(e){[queue[idx],queue[target]]=[queue[target],queue[idx]];alert('Não foi possível salvar a ordem da fila.');console.error(e)}}
-async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha?'))return;players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;pendingWinner=null;try{await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
-async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState()}
+async function resetGame(){if(!currentAdmin)return;if(!confirm('Reiniciar o jogo e zerar também todo o histórico da Resenha? O histórico de apostas e os saldos dos usuários serão preservados.'))return;try{if(currentBetMatch)await cancelBettingMatch();players.forEach(p=>{p.matches=0;p.wins=0;p.waitCount=0});teamA=[];teamB=[];queue=[];teamAWins=teamBWins=0;gameStarted=false;pendingWinner=null;await persistAll();switchTab('lista');render()}catch(e){alert('Não foi possível reiniciar o jogo no Supabase.');console.error(e)}}
+// ===== APOSTAS FICTÍCIAS / USUÁRIOS =====
+function openBettorModal(){bettorMode='login';setBettorMode('login');document.getElementById('bettor-modal').style.display='flex'}
+function closeBettorModal(){document.getElementById('bettor-modal').style.display='none';document.getElementById('bettor-username').value='';document.getElementById('bettor-password').value=''}
+function setBettorMode(mode){bettorMode=mode;document.getElementById('bettor-modal-title').innerText=mode==='register'?'🎲 Criar usuário':'🎲 Acesso USER';document.getElementById('bettor-modal-sub').innerText=mode==='register'?'Escolha um login e senha. Você receberá R$ 50,00 fictícios.':'Entre para apostar com créditos fictícios. Sem dinheiro real.';document.getElementById('bettor-submit').innerText=mode==='register'?'Criar conta':'Entrar';document.getElementById('bettor-mode-login').style.borderColor=mode==='login'?'var(--lime)':'var(--line)';document.getElementById('bettor-mode-register').style.borderColor=mode==='register'?'var(--lime)':'var(--line)';document.getElementById('bettor-password').autocomplete=mode==='register'?'new-password':'current-password'}
+async function submitBettorAuth(){const username=document.getElementById('bettor-username').value.trim().toLowerCase(),password=document.getElementById('bettor-password').value;if(!username||!password){alert('Informe o login e a senha.');return}try{const {data,error}=await db.rpc(bettorMode==='register'?'registrar_apostador':'login_apostador',{p_username:username,p_password:password});if(error)throw error;if(!data||!data.ok)throw new Error(data?.message||'Não foi possível autenticar.');currentBettorToken=data.token;localStorage.setItem('volei_detran_apostador_token',data.token);currentBettor=data.user;closeBettorModal();await refreshBettorData();render();alert(bettorMode==='register'?'Conta criada! Você recebeu R$ 50,00 fictícios.':'Login realizado com sucesso.')}catch(e){console.error(e);const msg=String(e.message||e);if(msg.toLowerCase().includes('duplicate')||msg.toLowerCase().includes('já existe')||msg.toLowerCase().includes('unique'))alert('Esse login já está cadastrado. Escolha outro.');else if(msg.toLowerCase().includes('inválid')||msg.toLowerCase().includes('senha'))alert('Login ou senha inválidos.');else alert('Não foi possível acessar a conta de apostas. Confirme se a migração SQL de apostas foi executada. Detalhe: '+msg)}}
+async function logoutBettor(){currentBettor=null;currentBettorToken=null;myBetHistory=[];localStorage.removeItem('volei_detran_apostador_token');render()}
+async function restoreBettor(){const token=localStorage.getItem('volei_detran_apostador_token');if(!token)return;try{const {data,error}=await db.rpc('obter_apostador',{p_token:token});if(error)throw error;if(data?.ok){currentBettorToken=token;currentBettor=data.user;await refreshBettorData()}else localStorage.removeItem('volei_detran_apostador_token')}catch(e){console.warn('Sessão USER indisponível:',e)}}
+async function refreshBettingRanking(){try{const {data,error}=await db.rpc('ranking_apostadores');if(!error&&Array.isArray(data))bettingRanking=data}catch(e){console.warn('Ranking de apostadores indisponível:',e)}}
+async function refreshBettorData(){if(currentBettorToken){const [profile,hist]=await Promise.all([db.rpc('obter_apostador',{p_token:currentBettorToken}),db.rpc('historico_apostas_apostador',{p_token:currentBettorToken})]);if(!profile.error&&profile.data?.ok)currentBettor=profile.data.user;if(!hist.error&&Array.isArray(hist.data))myBetHistory=hist.data;}await refreshBettingRanking();renderBettingUI()}
+function teamStrength(team){if(!team.length)return 0.5;return team.reduce((sum,p)=>sum+(p.matches>0?p.wins/p.matches:0.5),0)/team.length}
+function calculateOdds(a=teamA,b=teamB){
+    const all=[...a,...b];
+    if(!all.some(p=>p.matches>0))return{a:1,b:1};
+    const sa=Math.max(0.05,teamStrength(a)),sb=Math.max(0.05,teamStrength(b));
+    const pa=sa/(sa+sb),pb=sb/(sa+sb);
+    return {a:Math.max(1.05,Math.min(10,Math.round((1/pa)*100)/100)),b:Math.max(1.05,Math.min(10,Math.round((1/pb)*100)/100))};
+}
+async function loadCurrentBetMatch(){try{const {data,error}=await db.from('partidas_apostas').select('id,started_at,closes_at,odd_a,odd_b,status,time_a_ids,time_b_ids').eq('status','aberta').order('id',{ascending:false}).limit(1).maybeSingle();if(error)throw error;currentBetMatch=data||null}catch(e){currentBetMatch=null;console.warn('Tabela de apostas ainda não disponível:',e.message||e)}}
+async function openBettingMatch(){if(!gameStarted||!teamA.length||!teamB.length){currentBetMatch=null;renderBettingUI();return}const odds=calculateOdds();const payload={time_a_ids:teamA.map(p=>p.id),time_b_ids:teamB.map(p=>p.id),odd_a:odds.a,odd_b:odds.b,status:'aberta'};const {data,error}=await db.from('partidas_apostas').insert(payload).select('id,started_at,closes_at,odd_a,odd_b,status,time_a_ids,time_b_ids').single();if(error)throw error;currentBetMatch=data;await refreshBettorData();renderBettingUI()}
+async function closeBettingMatch(winner){if(!currentBetMatch)return;const partidaId=currentBetMatch.id;const {data,error}=await db.rpc('encerrar_partida_apostas',{p_partida_id:partidaId,p_vencedor:winner});if(error)throw error;if(!data?.ok)throw new Error(data?.message||'O banco não confirmou a liquidação das apostas.');currentBetMatch=null;await refreshBettorData();await loadCurrentBetMatch();renderBettingUI()}
+async function cancelBettingMatch(){if(!currentBetMatch)return;const {data,error}=await db.from('partidas_apostas').update({status:'cancelada'}).eq('id',currentBetMatch.id).eq('status','aberta').select('id').maybeSingle();if(error)throw error;if(!data)throw new Error('O banco não confirmou o cancelamento da partida.');currentBetMatch=null;await refreshBettorData()}
+async function placeBet(side){if(!currentBettorToken){openBettorModal();return}if(!currentBetMatch){alert('Não há partida aberta para apostar.');return}const input=document.getElementById('bet-amount-'+side),amount=Number(input?.value);if(!Number.isFinite(amount)||amount<=0){alert('Informe um valor maior que zero.');return}try{const {data,error}=await db.rpc('apostar_partida',{p_token:currentBettorToken,p_partida_id:currentBetMatch.id,p_lado:side,p_valor:Math.round(amount*100)/100});if(error)throw error;if(!data?.ok)throw new Error(data?.message||'A aposta não foi registrada.');await refreshBettorData();renderBettingUI();alert(`Aposta registrada no Time ${side}. Saldo: R$ ${Number(data.saldo).toFixed(2)}`)}catch(e){console.error(e);const msg=String(e.message||e);if(msg.toLowerCase().includes('unique')||msg.toLowerCase().includes('já apostou'))alert('Você já apostou nesse time nesta partida.');else alert('Não foi possível registrar a aposta: '+msg)}}
+function money(v){return Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function renderBettingUI(){renderBettingCard();const rankEl=document.getElementById('betting-ranking');if(rankEl){if(!bettingRanking.length)rankEl.innerHTML='<div class="empty-state">Ainda não há apostadores cadastrados.</div>';else rankEl.innerHTML=bettingRanking.map((r,i)=>`<div class="bet-rank-item"><span class="bet-rank-pos">${i+1}</span><div style="flex:1;min-width:0"><b>${escapeHtml(r.username)}</b><div style="color:var(--muted);margin-top:3px">${r.apostas} apostas · ${r.vitorias} acertos</div></div><b style="color:${Number(r.saldo)>=50?'var(--lime)':'#FF8A8A'}">${money(r.saldo)}</b></div>`).join('')}const histEl=document.getElementById('betting-history');if(histEl){if(!currentBettor)histEl.innerHTML='<div class="bet-login-cta">Entre como USER para consultar seu histórico de apostas.</div>';else if(!myBetHistory.length)histEl.innerHTML='<div class="empty-state">Você ainda não fez apostas.</div>';else histEl.innerHTML=myBetHistory.slice(0,30).map(b=>`<div class="bet-history-row"><div><b>Partida #${b.partida_id} · Time ${b.lado}</b><div style="color:var(--muted);margin-top:3px">Aposta ${money(b.valor)} · ODD ${Number(b.odd).toFixed(2)}x</div></div><div style="text-align:right"><b class="${b.status==='ganhou'?'bet-win':b.status==='perdeu'?'bet-loss':''}">${b.status==='pendente'?'Pendente':b.status==='ganhou'?'Ganhou':b.status==='perdeu'?'Perdeu':'Cancelada'}</b><div style="margin-top:3px">${money(b.retorno)}</div></div></div>`).join('')}}
+function renderBettingCard(){const content=document.getElementById('betting-content');if(!content)return;const badge=document.getElementById('bet-time-left');const open=!!currentBetMatch&&currentBetMatch.status==='aberta'&&new Date(currentBetMatch.closes_at).getTime()>Date.now();if(!gameStarted||!currentBetMatch){if(badge)badge.innerText='Aguardando partida';content.innerHTML=currentBettor?`<div class="bet-balance"><span>Saldo de ${escapeHtml(currentBettor.username)}</span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-login-cta">As apostas aparecem quando uma partida começar.</div>`:'<div class="bet-login-cta">Entre como USER para receber R$ 50,00 fictícios e apostar durante o primeiro minuto de cada partida.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>';return}const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));if(badge)badge.innerText=open?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(!currentBettor){content.innerHTML=`<div class="bet-login-cta">ODD Time A: <b>${Number(currentBetMatch.odd_a).toFixed(2)}x</b> · Time B: <b>${Number(currentBetMatch.odd_b).toFixed(2)}x</b><br>Você tem 1 minuto após o início da partida para apostar.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>`;return}const betA=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='A'),betB=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='B');content.innerHTML=`<div class="bet-balance"><span>Saldo fictício de <b>${escapeHtml(currentBettor.username)}</b></span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-grid"><div class="bet-side a"><div class="bet-side-title">🔵 TIME A</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_a).toFixed(2)}x</div>${betA?`<div class="bet-note">Você apostou ${money(betA.valor)}.</div>`:`<input id="bet-amount-A" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('A')" ${!open?'disabled':''}>APOSTAR NO A</button>`}</div><div class="bet-side b"><div class="bet-side-title">🔴 TIME B</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_b).toFixed(2)}x</div>${betB?`<div class="bet-note">Você apostou ${money(betB.valor)}.</div>`:`<input id="bet-amount-B" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('B')" ${!open?'disabled':''}>APOSTAR NO B</button>`}</div></div><div class="bet-note">Créditos fictícios, sem dinheiro real. A aposta é descontada do saldo imediatamente. Se acertar, o retorno será valor apostado × ODD; se errar, perde o valor apostado. O prazo é controlado pelo banco.</div>`}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function updateBetCountdown(){if(!currentBetMatch)return;const badge=document.getElementById('bet-time-left');if(!badge)return;const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));badge.innerText=remaining>0?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(remaining===0){document.querySelectorAll('#betting-content .bet-side input,#betting-content .bet-side button').forEach(el=>el.disabled=true)}}
+async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState();await loadCurrentBetMatch();await restoreBettor();await refreshBettingRanking();await refreshBettorData().catch(()=>{});render();if(!bettingTick)bettingTick=setInterval(updateBetCountdown,1000)}
 init();
 
 </script>
