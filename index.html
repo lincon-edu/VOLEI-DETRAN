@@ -912,9 +912,16 @@ function render() {
             resenhaEl.innerHTML = '';
             const podiumEl = document.getElementById('resenha-podium');
             podiumEl.innerHTML = '';
-            const ranked = [...players].sort((a, b) => b.wins - a.wins || b.matches - a.matches);
-
+            // Classificação da Resenha: total de vitórias primeiro; em caso de empate,
+            // mais partidas jogadas; persistindo o empate, melhor percentual de vitórias.
+            // Assim, 9 vitórias em 10 jogos fica acima de 8 vitórias em 8 jogos.
             const pctOf = p => p.matches > 0 ? Math.round((p.wins / p.matches) * 100) : 0;
+            const ranked = [...players].sort((a, b) =>
+                (b.wins - a.wins) ||
+                (b.matches - a.matches) ||
+                ((b.matches > 0 ? b.wins / b.matches : 0) - (a.matches > 0 ? a.wins / a.matches : 0)) ||
+                a.name.localeCompare(b.name, 'pt-BR')
+            );
             let rest = ranked;
 
             if (ranked.length >= 3) {
