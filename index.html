@@ -434,11 +434,11 @@
         }
 
         /* ===== MODAL ===== */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(3,6,14,.78); backdrop-filter: blur(6px); z-index: 50; align-items: center; justify-content: center; padding:20px; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(3,6,14,.78); backdrop-filter: blur(6px); z-index: 50; align-items: center; justify-content: center; padding:20px; overflow-y:auto; overscroll-behavior:contain; }
         .modal-body {
             background: linear-gradient(180deg, #131D33, #0C1322);
             border:1px solid var(--line); width: 100%; max-width: 360px; padding: 22px;
-            border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6);
+            border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,.6); max-height:calc(100dvh - 40px); overflow-y:auto; overscroll-behavior:contain;
             animation: rise .28s ease both;
         }
         .modal-body h3 {
@@ -451,7 +451,7 @@
             color:var(--text); font-size:14px; outline:none;
         }
         .modal-body input:focus{ border-color: rgba(185,255,61,.55); box-shadow:0 0 0 3px rgba(185,255,61,.12); }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; position:sticky; bottom:-22px; padding:12px 0 2px; background:linear-gradient(180deg,rgba(12,19,34,.92),#0C1322 35%); }
         .modal-actions button{ padding:11px 16px; border-radius:11px; font-weight:800; font-size:13px; cursor:pointer; }
         .btn-cancel{ background: rgba(255,255,255,.05); border:1px solid var(--line); color:var(--text); }
         .btn-ok{ background: linear-gradient(135deg, var(--lime), var(--lime-deep)); color:#0A1120; border:none; letter-spacing:.06em; text-transform:uppercase; }
@@ -678,6 +678,15 @@
             </div>
 
             <div class="settings-group">
+                <div class="settings-label"><span>Prioridade após duas vitórias</span></div>
+                <div class="settings-row">
+                    <span>Vencedor fica à frente do perdedor</span>
+                    <label class="switch"><input type="checkbox" id="cfg-winner-priority"><span class="slider"></span></label>
+                </div>
+                <div class="settings-help">Quando ligada, se um time vencer duas partidas seguidas e ambos saírem da quadra, os jogadores do vencedor ficam antes dos jogadores do time derrotado na ordem de montagem dos próximos times. A fila que já estava esperando continua à frente, a menos que “Vencedor volta como próximo” também esteja ligada.</div>
+            </div>
+
+            <div class="settings-group">
                 <div class="settings-label"><span>Vencedor fica até perder</span></div>
                 <div class="settings-row">
                     <span>Se não houver 2 times na fila</span>
@@ -704,18 +713,18 @@ const {createClient}=supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 let currentAdmin=null,currentBettor=null,currentBettorToken=null,bettorMode='login',myBetHistory=[],bettingRanking=[],currentBetMatch=null,currentTab='lista',gameStarted=false,teamAWins=0,teamBWins=0,pendingWinner=null;
 let players=[],nextQueueOrder=1,teamA=[],teamB=[],queue=[];let rtTimer=null,loading=false,configMissingNewColumn=false,bettingTick=null;
-let gameConfig={teamSize:4,minWomen:1,autoWomen50:true,winnerReturnsNext:false,winnerStays:false};
+let gameConfig={teamSize:4,minWomen:1,autoWomen50:true,winnerReturnsNext:false,winnerPriorityOverLoser:false,winnerStays:false};
 const jogadoresIniciais=[['Victor','M'],['Joao V','M'],['Glauber','M'],['Lucas','M'],['Mateus','M'],['Gabriel','M'],['Rafael','M'],['João','M'],['Pedro','M'],['Tiago','M'],['Marcos','M'],['André','M'],['Felipe','M'],['Carlos','M'],['Eduardo','M'],['Marcelo','M'],['Gustavo','M'],['Fernando','M'],['Bruno','M'],['Diego','M'],['Leonardo','M'],['Thiago','M'],['Rodrigo','M'],['Ana','F'],['Julia','F'],['Beatriz','F'],['Mariana','F'],['Camila','F'],['Letícia','F'],['Amanda','F']];
 function mapPlayer(r){
     const status=r.status||(r.confirmado?'confirmado':'ausente');
     return{id:+r.id,name:r.nome,sex:r.sexo,status,confirmed:status==='confirmado',matches:+(r.partidas||0),wins:+(r.vitorias||0),waitCount:+(r.espera||0),queueOrder:+(r.queue_order||r.id)}
 }
 function statePayload(){return{id:1,iniciado:gameStarted,vitorias_time_a:teamAWins,vitorias_time_b:teamBWins,time_a:teamA.map(p=>p.id),time_b:teamB.map(p=>p.id),fila:queue.map(p=>p.id)}}
-function configPayload(){return{id:1,jogadores_por_time:gameConfig.teamSize,minimo_mulheres:gameConfig.minWomen,regra_mulheres_50:gameConfig.autoWomen50,vencedor_duas_volta_fila:gameConfig.winnerReturnsNext,vencedor_fica_sem_dois_times:gameConfig.winnerStays}}
-async function loadState(){if(loading)return;loading=true;try{const [pr,sr,cr]=await Promise.all([db.from('jogadores').select('id,nome,sexo,status,confirmado,partidas,vitorias,espera,queue_order').order('queue_order'),db.from('estado_jogo').select('*').eq('id',1).maybeSingle(),db.from('configuracoes_jogo').select('*').eq('id',1).maybeSingle()]);if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(cr.error)throw cr.error;players=(pr.data||[]).map(mapPlayer);nextQueueOrder=players.reduce((m,p)=>Math.max(m,p.queueOrder),0)+1;const c=cr.data;if(c)gameConfig={teamSize:+(c.jogadores_por_time||4),minWomen:+(c.minimo_mulheres||0),autoWomen50:c.regra_mulheres_50!==false,winnerReturnsNext:c.vencedor_duas_volta_fila===true,winnerStays:configMissingNewColumn?gameConfig.winnerStays:(c.vencedor_fica_sem_dois_times===true)};const s=sr.data;const byId=new Map(players.map(p=>[p.id,p]));if(s){gameStarted=!!s.iniciado;teamAWins=+(s.vitorias_time_a||0);teamBWins=+(s.vitorias_time_b||0);teamA=(s.time_a||[]).map(id=>byId.get(+id)).filter(Boolean);teamB=(s.time_b||[]).map(id=>byId.get(+id)).filter(Boolean);queue=(s.fila||[]).map(id=>byId.get(+id)).filter(Boolean)}else{gameStarted=false;teamAWins=teamBWins=0;teamA=[];teamB=[];queue=[]}render()}catch(e){console.error(e);alert('Não foi possível carregar os dados do Supabase.')}finally{loading=false}}
+function configPayload(){return{id:1,jogadores_por_time:gameConfig.teamSize,minimo_mulheres:gameConfig.minWomen,regra_mulheres_50:gameConfig.autoWomen50,vencedor_duas_volta_fila:gameConfig.winnerReturnsNext,vencedor_prioridade_perdedor:gameConfig.winnerPriorityOverLoser,vencedor_fica_sem_dois_times:gameConfig.winnerStays}}
+async function loadState(){if(loading)return;loading=true;try{const [pr,sr,cr]=await Promise.all([db.from('jogadores').select('id,nome,sexo,status,confirmado,partidas,vitorias,espera,queue_order').order('id'),db.from('estado_jogo').select('*').eq('id',1).maybeSingle(),db.from('configuracoes_jogo').select('*').eq('id',1).maybeSingle()]);if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(cr.error)throw cr.error;players=(pr.data||[]).map(mapPlayer);nextQueueOrder=players.reduce((m,p)=>Math.max(m,p.queueOrder),0)+1;const c=cr.data;if(c)gameConfig={teamSize:+(c.jogadores_por_time||4),minWomen:+(c.minimo_mulheres||0),autoWomen50:c.regra_mulheres_50!==false,winnerReturnsNext:c.vencedor_duas_volta_fila===true,winnerPriorityOverLoser:c.vencedor_prioridade_perdedor===true,winnerStays:configMissingNewColumn?gameConfig.winnerStays:(c.vencedor_fica_sem_dois_times===true)};const s=sr.data;const byId=new Map(players.map(p=>[p.id,p]));if(s){gameStarted=!!s.iniciado;teamAWins=+(s.vitorias_time_a||0);teamBWins=+(s.vitorias_time_b||0);teamA=(s.time_a||[]).map(id=>byId.get(+id)).filter(Boolean);teamB=(s.time_b||[]).map(id=>byId.get(+id)).filter(Boolean);queue=(s.fila||[]).map(id=>byId.get(+id)).filter(Boolean)}else{gameStarted=false;teamAWins=teamBWins=0;teamA=[];teamB=[];queue=[]}render()}catch(e){console.error(e);alert('Não foi possível carregar os dados do Supabase.')}finally{loading=false}}
 async function persistPlayers(){const rows=players.map(p=>({id:p.id,nome:p.name,sexo:p.sex,status:p.status,confirmado:p.status==='confirmado',partidas:p.matches,vitorias:p.wins,espera:p.waitCount,queue_order:p.queueOrder}));const {error}=await db.from('jogadores').upsert(rows,{onConflict:'id'});if(error)throw error}
 async function persistState(){const {error}=await db.from('estado_jogo').upsert(statePayload(),{onConflict:'id'});if(error)throw error}
-async function persistConfig(){let {error}=await db.from('configuracoes_jogo').upsert(configPayload(),{onConflict:'id'});if(error&&/vencedor_fica_sem_dois_times/.test(error.message||'')){const legacy=configPayload();delete legacy.vencedor_fica_sem_dois_times;const r=await db.from('configuracoes_jogo').upsert(legacy,{onConflict:'id'});if(r.error)throw r.error;configMissingNewColumn=true;return}if(error)throw error;configMissingNewColumn=false}
+async function persistConfig(){let {error}=await db.from('configuracoes_jogo').upsert(configPayload(),{onConflict:'id'});if(error&&/vencedor_fica_sem_dois_times|vencedor_prioridade_perdedor/.test(error.message||'')){const legacy=configPayload();if(/vencedor_fica_sem_dois_times/.test(error.message||''))delete legacy.vencedor_fica_sem_dois_times;if(/vencedor_prioridade_perdedor/.test(error.message||''))delete legacy.vencedor_prioridade_perdedor;const r=await db.from('configuracoes_jogo').upsert(legacy,{onConflict:'id'});if(r.error)throw r.error;configMissingNewColumn=true;return}if(error)throw error;configMissingNewColumn=false}
 function syncWaitCounts(){const counts=new Map();queue.forEach(p=>counts.set(p.id,p.waitCount));teamA.forEach(p=>counts.set(p.id,p.waitCount));teamB.forEach(p=>counts.set(p.id,p.waitCount));players.forEach(p=>{if(counts.has(p.id))p.waitCount=counts.get(p.id);else p.waitCount=0})}
 async function persistAll(){syncWaitCounts();await Promise.all([persistPlayers(),persistState()])}
 function setupRealtime(){db.channel('volei-detran-sync').on('postgres_changes',{event:'*',schema:'public',table:'jogadores'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'estado_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'configuracoes_jogo'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(loadState,200)}).on('postgres_changes',{event:'*',schema:'public',table:'partidas_apostas'},()=>{clearTimeout(rtTimer);rtTimer=setTimeout(async()=>{await loadCurrentBetMatch();renderBettingUI()},250)}).subscribe()}
@@ -973,6 +982,7 @@ function openSettingsModal(){
     document.getElementById('cfg-min-women').value=gameConfig.minWomen;
     document.getElementById('cfg-auto-women').checked=gameConfig.autoWomen50;
     document.getElementById('cfg-winner-return').checked=gameConfig.winnerReturnsNext;
+    document.getElementById('cfg-winner-priority').checked=gameConfig.winnerPriorityOverLoser;
     document.getElementById('cfg-winner-stays').checked=gameConfig.winnerStays;
     document.getElementById('settings-running-warning').style.display=gameStarted?'block':'none';
     document.getElementById('settings-migration-warning').style.display=configMissingNewColumn?'block':'none';
@@ -985,11 +995,12 @@ async function saveGameSettings(){
     const minWomen=parseInt(document.getElementById('cfg-min-women').value,10);
     const autoWomen50=document.getElementById('cfg-auto-women').checked;
     const winnerReturnsNext=document.getElementById('cfg-winner-return').checked;
+    const winnerPriorityOverLoser=document.getElementById('cfg-winner-priority').checked;
     const winnerStays=document.getElementById('cfg-winner-stays').checked;
     if(!Number.isInteger(teamSize)||teamSize<2||teamSize>10){alert('A quantidade de jogadores por time deve estar entre 2 e 10.');return}
     if(!Number.isInteger(minWomen)||minWomen<0||minWomen>teamSize){alert('O mínimo de mulheres deve estar entre 0 e o tamanho do time.');return}
     const old={...gameConfig};
-    gameConfig={teamSize,minWomen,autoWomen50,winnerReturnsNext,winnerStays};
+    gameConfig={teamSize,minWomen,autoWomen50,winnerReturnsNext,winnerPriorityOverLoser,winnerStays};
     try{await persistConfig();closeSettingsModal();render();alert(configMissingNewColumn?'Configurações salvas. Atenção: o parâmetro "Vencedor fica até perder" precisa da migração SQL no Supabase (coluna vencedor_fica_sem_dois_times) para ser gravado. Ele vale nesta sessão.':"Configurações salvas com sucesso.");}
     catch(e){gameConfig=old;alert('Não foi possível salvar as configurações.');console.error(e)}
 }
@@ -1016,10 +1027,18 @@ async function togglePresence(id){
     const next={confirmado:'ausente',ausente:'pendente',pendente:'confirmado'}[p.status]||'pendente';
     if(next==='confirmado' && players.filter(x=>x.status==='confirmado').length>=40){alert('Já existem 40 jogadores confirmados. Para confirmar este jogador, primeiro marque outro como ausente ou pendente.');return}
     const oldStatus=p.status;
+    const oldQueueOrder=p.queueOrder;
     const wasInA=teamA.some(x=>x.id===p.id);
     const wasInB=teamB.some(x=>x.id===p.id);
     const wasInQueue=queue.some(x=>x.id===p.id);
     p.status=next;p.confirmed=next==='confirmado';
+
+    // A confirmação define a ordem de chegada/prioridade. Antes do jogo,
+    // cada novo confirmado recebe a próxima posição; durante o jogo, também
+    // recebe uma ordem nova e entra no fim da fila de espera.
+    if(p.confirmed && next!==oldStatus){
+        p.queueOrder=nextQueueOrder++;
+    }
 
     // Ausente/Pendente nunca podem permanecer na quadra ou na fila.
     if(!p.confirmed){
@@ -1051,7 +1070,8 @@ async function togglePresence(id){
         await persistAll();
         render();
     }catch(e){
-        p.status=oldStatus;p.confirmed=oldStatus==='confirmado';
+        p.status=oldStatus;p.confirmed=oldStatus==='confirmado';p.queueOrder=oldQueueOrder;
+        nextQueueOrder=Math.max(nextQueueOrder,oldQueueOrder+1);
         alert('Não foi possível salvar a alteração.');console.error(e);
     }
 }
@@ -1113,7 +1133,7 @@ function composeTeams(pool,keepA=[],keepB=[],requiredWomen=1){
     while(B.length<gameConfig.teamSize&&available.length){const p=takeNextPlayer(available);if(p)B.push(p)}
     return{A,B,remaining:available};
 }
-async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').map(p=>({...p,waitCount:0}));if(confirmed.length<gameConfig.teamSize*2){alert(`É necessário pelo menos ${gameConfig.teamSize*2} confirmados para iniciar com times de ${gameConfig.teamSize}.`);return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;pendingWinner=null;try{await persistAll();try{await openBettingMatch()}catch(betError){console.error('Não foi possível abrir as apostas:',betError);alert('O jogo começou, mas as apostas não foram habilitadas. Verifique se a migração SQL de apostas foi executada e se o ADM entrou pelo Supabase Auth.')}render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
+async function startGame(){if(!currentAdmin)return;const confirmed=players.filter(p=>p.status==='confirmado').sort((a,b)=>a.queueOrder-b.queueOrder).map(p=>({...p,waitCount:0}));if(confirmed.length<gameConfig.teamSize*2){alert(`É necessário pelo menos ${gameConfig.teamSize*2} confirmados para iniciar com times de ${gameConfig.teamSize}.`);return}const requiredWomen=requiredWomenPerTeam(confirmed),womenCount=confirmed.filter(p=>p.sex==='F').length;if(womenCount<requiredWomen*2){alert(`Não é possível iniciar: a regra atual exige ${requiredWomen} mulher(es) por time, mas há apenas ${womenCount} mulher(es) confirmada(s).`);return}const composed=composeTeams(confirmed,[],[],requiredWomen);teamA=composed.A;teamB=composed.B;queue=composed.remaining;teamAWins=teamBWins=0;gameStarted=true;pendingWinner=null;try{await persistAll();try{await openBettingMatch()}catch(betError){console.error('Não foi possível abrir as apostas:',betError);alert('O jogo começou, mas as apostas não foram habilitadas. Verifique se a migração SQL de apostas foi executada e se o ADM entrou pelo Supabase Auth.')}render();switchTab('quadra')}catch(e){gameStarted=false;teamA=[];teamB=[];queue=[];alert('Não foi possível iniciar o jogo.');console.error(e)}}
 async function handleWin(winner){
     if(!currentAdmin||!gameStarted)return;
     pendingWinner=null;
@@ -1155,9 +1175,18 @@ async function handleWin(winner){
     const requiredWomen=requiredWomenPerTeam(players.filter(p=>p.status==='confirmado'));
     const normalPool=[...available.filter(p=>p.status==='confirmado'),...leaving.filter(p=>p.status==='confirmado')];
     const returningIds=new Set(winnerReturningTeam.map(p=>p.id));
-    const candidatePool=gameConfig.winnerReturnsNext&&winnerReturningTeam.length
-        ? [...winnerReturningTeam.filter(p=>p.status==='confirmado'),...normalPool.filter(p=>!returningIds.has(p.id))]
-        : normalPool;
+    const loserReturningTeam=winnerReturningTeam.length
+        ? leaving.filter(p=>!returningIds.has(p.id)&&p.status==='confirmado')
+        : [];
+    let candidatePool=normalPool;
+    if(winnerReturningTeam.length&&gameConfig.winnerReturnsNext){
+        // Prioridade máxima: vencedor volta antes de toda a fila.
+        candidatePool=[...winnerReturningTeam.filter(p=>p.status==='confirmado'),...normalPool.filter(p=>!returningIds.has(p.id))];
+    }else if(winnerReturningTeam.length&&gameConfig.winnerPriorityOverLoser){
+        // A fila que já aguardava mantém prioridade; depois entram vencedor e perdedor, nesta ordem.
+        const waitingIds=new Set(available.map(p=>p.id));
+        candidatePool=[...available.filter(p=>p.status==='confirmado'),...winnerReturningTeam.filter(p=>p.status==='confirmado'),...loserReturningTeam.filter(p=>!waitingIds.has(p.id))];
+    }
     const composed=composeTeams(candidatePool,teamA,teamB,requiredWomen);
     teamA=composed.A;teamB=composed.B;queue=composed.remaining;
     teamA.forEach(p=>p.waitCount=0);teamB.forEach(p=>p.waitCount=0);
@@ -1270,7 +1299,7 @@ async function adminEditBettorBalance(id,username,currentBalance){
         alert(`Saldo de ${username} atualizado para ${money(saldo)}.`);
     }catch(e){console.error(e);alert('Não foi possível alterar o saldo. Se entrou com um ADM local, entre usando uma conta administrativa autenticada pelo Supabase Auth. Detalhe: '+(e.message||e));}
 }
-function renderBettingCard(){const content=document.getElementById('betting-content');if(!content)return;const badge=document.getElementById('bet-time-left');const open=!!currentBetMatch&&currentBetMatch.status==='aberta'&&new Date(currentBetMatch.closes_at).getTime()>Date.now();if(!gameStarted||!currentBetMatch){if(badge)badge.innerText='Aguardando partida';content.innerHTML=currentBettor?`<div class="bet-balance"><span>Saldo de ${escapeHtml(currentBettor.username)}</span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-login-cta">As apostas aparecem quando uma partida começar.</div>`:'<div class="bet-login-cta">Entre como USER para receber R$ 50,00 fictícios e apostar durante o primeiro minuto de cada partida.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>';return}const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));if(badge)badge.innerText=open?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(!currentBettor){content.innerHTML=`<div class="bet-login-cta">ODD Time A: <b>${Number(currentBetMatch.odd_a).toFixed(2)}x</b> · Time B: <b>${Number(currentBetMatch.odd_b).toFixed(2)}x</b><br>Você tem 1 minuto após o início da partida para apostar.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>`;return}const betA=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='A'),betB=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='B');content.innerHTML=`<div class="bet-balance"><span>Saldo fictício de <b>${escapeHtml(currentBettor.username)}</b></span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-grid"><div class="bet-side a"><div class="bet-side-title">🔵 TIME A</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_a).toFixed(2)}x</div>${betA?`<div class="bet-note">Você apostou ${money(betA.valor)}.</div>`:`<input id="bet-amount-A" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('A')" ${!open?'disabled':''}>APOSTAR NO A</button>`}</div><div class="bet-side b"><div class="bet-side-title">🔴 TIME B</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_b).toFixed(2)}x</div>${betB?`<div class="bet-note">Você apostou ${money(betB.valor)}.</div>`:`<input id="bet-amount-B" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('B')" ${!open?'disabled':''}>APOSTAR NO B</button>`}</div></div><div class="bet-note">Créditos fictícios, sem dinheiro real. A aposta é descontada do saldo imediatamente. Se acertar, o retorno será valor apostado × ODD; se errar, perde o valor apostado. O prazo é controlado pelo banco.</div>`}
+function renderBettingCard(){const content=document.getElementById('betting-content');if(!content)return;const badge=document.getElementById('bet-time-left');const open=!!currentBetMatch&&currentBetMatch.status==='aberta'&&new Date(currentBetMatch.closes_at).getTime()>Date.now();if(!gameStarted||!currentBetMatch){if(badge)badge.innerText='Aguardando partida';content.innerHTML=currentBettor?`<div class="bet-balance"><span>Saldo de ${escapeHtml(currentBettor.username)}</span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-login-cta">As apostas aparecem quando uma partida começar.</div>`:'<div class="bet-login-cta">Entre como USER para receber R$ 50,00 fictícios e apostar durante os primeiros 2 minutos de cada partida.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>';return}const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));if(badge)badge.innerText=open?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(!currentBettor){content.innerHTML=`<div class="bet-login-cta">ODD Time A: <b>${Number(currentBetMatch.odd_a).toFixed(2)}x</b> · Time B: <b>${Number(currentBetMatch.odd_b).toFixed(2)}x</b><br>Você tem 2 minutos após o início da partida para apostar.<br><button class="btn-user" style="margin-top:10px" onclick="openBettorModal()">🎲 Entrar / Criar login</button></div>`;return}const betA=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='A'),betB=myBetHistory.find(b=>Number(b.partida_id)===Number(currentBetMatch.id)&&b.lado==='B');content.innerHTML=`<div class="bet-balance"><span>Saldo fictício de <b>${escapeHtml(currentBettor.username)}</b></span><strong>${money(currentBettor.saldo)}</strong></div><div class="bet-grid"><div class="bet-side a"><div class="bet-side-title">🔵 TIME A</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_a).toFixed(2)}x</div>${betA?`<div class="bet-note">Você apostou ${money(betA.valor)}.</div>`:`<input id="bet-amount-A" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('A')" ${!open?'disabled':''}>APOSTAR NO A</button>`}</div><div class="bet-side b"><div class="bet-side-title">🔴 TIME B</div><div style="font-size:10px;color:var(--muted)">Retorno por R$ 1</div><div class="bet-odd">${Number(currentBetMatch.odd_b).toFixed(2)}x</div>${betB?`<div class="bet-note">Você apostou ${money(betB.valor)}.</div>`:`<input id="bet-amount-B" type="number" min="0.01" step="0.01" max="${Number(currentBettor.saldo)}" placeholder="Valor R$" ${!open?'disabled':''}><button onclick="placeBet('B')" ${!open?'disabled':''}>APOSTAR NO B</button>`}</div></div><div class="bet-note">Créditos fictícios, sem dinheiro real. A aposta é descontada do saldo imediatamente. Se acertar, o retorno será valor apostado × ODD; se errar, perde o valor apostado. O prazo é controlado pelo banco.</div>`}
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updateBetCountdown(){if(!currentBetMatch)return;const badge=document.getElementById('bet-time-left');if(!badge)return;const remaining=Math.max(0,Math.ceil((new Date(currentBetMatch.closes_at).getTime()-Date.now())/1000));badge.innerText=remaining>0?`⏱ ${remaining}s restantes`:'🔒 Apostas encerradas';if(remaining===0){document.querySelectorAll('#betting-content .bet-side input,#betting-content .bet-side button').forEach(el=>el.disabled=true)}}
 async function init(){const {data}=await db.auth.getSession();currentAdmin=data.session?.user?.email||null;render();db.auth.onAuthStateChange((_e,s)=>{currentAdmin=s?.user?.email||null;render()});setupRealtime();await loadState();await loadCurrentBetMatch();await restoreBettor();await refreshBettingRanking();await refreshBettorData().catch(()=>{});render();if(!bettingTick)bettingTick=setInterval(updateBetCountdown,1000)}
